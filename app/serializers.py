@@ -15,7 +15,7 @@ class MemberSerializer(serializers.ModelSerializer):
     class Meta:
         model = Member
         fields = '__all__'
-
+        
 class LoanSerializer(serializers.ModelSerializer):
     class Meta:
         model = Loan

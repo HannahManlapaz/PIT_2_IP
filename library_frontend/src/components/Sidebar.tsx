@@ -2,12 +2,18 @@ import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { logoutApi } from '../api';
 
+import libraryIcon from '../assets/library-icon.png';
+import bookIcon    from '../assets/book-icon.png';
+import authorIcon  from '../assets/author-icon.png';
+import memberIcon  from '../assets/member-icon.png';
+import loanIcon    from '../assets/loan-icon.png';
+
 const navItems = [
-  { to: '/',        icon: '🏛️', label: 'Dashboard' },
-  { to: '/books',   icon: '📖', label: 'Books'     },
-  { to: '/authors', icon: '✒️', label: 'Authors'   },
-  { to: '/members', icon: '🎓', label: 'Members'   },
-  { to: '/loans',   icon: '🔖', label: 'Loans'     },
+  { to: '/',        icon: libraryIcon, label: 'Dashboard' },
+  { to: '/books',   icon: bookIcon,    label: 'Books'     },
+  { to: '/authors', icon: authorIcon,  label: 'Authors'   },
+  { to: '/members', icon: memberIcon,  label: 'Members'   },
+  { to: '/loans',   icon: loanIcon,    label: 'Loans'     },
 ];
 
 interface Props {
@@ -48,7 +54,7 @@ const Sidebar: React.FC<Props> = ({ username, onLogout }) => {
               }`
             }
           >
-            <span className="text-lg w-6 text-center">{icon}</span>
+            <img src={icon} alt={label} className="w-10 h-10 object-contain" />
             <span>{label}</span>
           </NavLink>
         ))}

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { loginApi } from '../api';
+import libraryIcon from '../assets/library-icon.png';
 
 interface Props {
   onLogin: (token: string, username: string) => void;
@@ -48,12 +49,11 @@ const Loginpage: React.FC<Props> = ({ onLogin }) => {
 
       <div className="relative w-full max-w-md z-10">
 
-        {/* Monogram + title */}
+        {/* Icon + title */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-full border-2 border-yellow-600 bg-[#1a1209] mb-4 shadow-lg"
+          <div className="inline-flex items-center justify-center w-20 h-20 rounded-full border-2 border-yellow-600 bg-[#1a1209] mb-4 shadow-lg"
             style={{ boxShadow: '0 0 24px #c9a84c33' }}>
-            <span style={{fontFamily:'Playfair Display, serif'}}
-              className="text-yellow-500 text-2xl font-bold">B</span>
+            <img src={libraryIcon} alt="Bibliotheca" className="w-14 h-14 object-contain" />
           </div>
           <h1 style={{fontFamily:'Playfair Display, serif'}}
             className="text-4xl font-bold text-yellow-500 mb-1 tracking-wide">

@@ -10,6 +10,15 @@
     background-color: #f5f0e8;
     color: #1a1209;
   }
+
+  aside nav {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  aside nav::-webkit-scrollbar {
+    display: none;
+  }
 }
 
 @layer utilities {

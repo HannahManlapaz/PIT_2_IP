@@ -13,6 +13,8 @@ export interface Book {
   author: number;
   author_name?: string;
   available: boolean;
+  cover_image?: File | string | null;
+  cover_image_url?: string | null;
 }
 
 export interface Member {

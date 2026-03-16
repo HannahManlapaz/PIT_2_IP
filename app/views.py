@@ -8,6 +8,7 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from django.contrib.auth import authenticate
 from rest_framework import status
+from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 
 
 @api_view(['POST'])
@@ -40,10 +41,18 @@ class AuthorRetrieveUpdateDestroyView(RetrieveUpdateDestroyAPIView):
 class BookListCreateView(ListCreateAPIView):
     queryset = Book.objects.all()
     serializer_class = BookSerializer
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
+
+    def get_serializer_context(self):
+        return {'request': self.request}
 
 class BookRetrieveUpdateDestroyView(RetrieveUpdateDestroyAPIView):
     queryset = Book.objects.all()
     serializer_class = BookSerializer
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
+
+    def get_serializer_context(self):
+        return {'request': self.request}
 
 class MemberListCreateView(ListCreateAPIView):
     queryset = Member.objects.all()

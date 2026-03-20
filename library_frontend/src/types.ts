@@ -33,5 +33,15 @@ export interface Loan {
   member_name?: string;
   book_title?: string;
   loan_date: string;
+  due_date?: string | null;
   return_date: string | null;
+  overdue_days?: number;
+}
+
+export interface AuthUser {
+  token?: string;
+  username?: string;
+  role?: 'admin' | 'borrower' | 'superadmin';
+  member_id?: number | null;
+  error?: string;
 }

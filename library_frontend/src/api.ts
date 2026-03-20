@@ -1,4 +1,4 @@
-import { Author, Book, Member, Loan } from './types';
+import { Author, Book, Member, Loan, AuthUser } from './types';
 
 const BASE_URL = 'http://127.0.0.1:8000/api';
 
@@ -15,20 +15,35 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   if (res.status === 401) {
     localStorage.removeItem('token');
     localStorage.removeItem('username');
-    window.location.href = '/login';
+    localStorage.removeItem('role');
+    localStorage.removeItem('member_id');
+    window.location.href = '/';
     throw new Error('Unauthorized');
   }
-  if (!res.ok) throw new Error(`API error: ${res.status}`);
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(JSON.stringify(err) || `API error: ${res.status}`);
+  }
   if (res.status === 204) return undefined as T;
   return res.json();
 }
 
 // Auth
-export const loginApi = (username: string, password: string) =>
+export const loginApi = (username: string, password: string): Promise<AuthUser> =>
   fetch(`${BASE_URL}/login/`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ username, password }),
+  }).then(res => res.json());
+
+export const registerApi = (data: {
+  username: string; password: string; name: string;
+  email: string; contact_number: string; address: string;
+}): Promise<AuthUser> =>
+  fetch(`${BASE_URL}/register/`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
   }).then(res => res.json());
 
 export const logoutApi = () =>
@@ -43,9 +58,8 @@ export const updateAuthor = (id: number, data: Omit<Author, 'id'>) =>
 export const deleteAuthor = (id: number) =>
   request<void>(`/authors/${id}/`, { method: 'DELETE' });
 
-// Books — uses FormData to support image upload
+// Books
 export const getBooks = () => request<Book[]>('/books/');
-
 export const createBook = (data: Omit<Book, 'id' | 'author_name' | 'cover_image_url'>) => {
   const fd = new FormData();
   fd.append('title',            data.title);
@@ -56,7 +70,6 @@ export const createBook = (data: Omit<Book, 'id' | 'author_name' | 'cover_image_
   if (data.cover_image instanceof File) fd.append('cover_image', data.cover_image);
   return request<Book>('/books/', { method: 'POST', body: fd });
 };
-
 export const updateBook = (id: number, data: Omit<Book, 'id' | 'author_name' | 'cover_image_url'>) => {
   const fd = new FormData();
   fd.append('title',            data.title);
@@ -67,7 +80,6 @@ export const updateBook = (id: number, data: Omit<Book, 'id' | 'author_name' | '
   if (data.cover_image instanceof File) fd.append('cover_image', data.cover_image);
   return request<Book>(`/books/${id}/`, { method: 'PUT', body: fd });
 };
-
 export const deleteBook = (id: number) =>
   request<void>(`/books/${id}/`, { method: 'DELETE' });
 
@@ -88,3 +100,40 @@ export const updateLoan = (id: number, data: Omit<Loan, 'id' | 'member_name' | '
   request<Loan>(`/loans/${id}/`, { method: 'PUT', body: JSON.stringify(data) });
 export const deleteLoan = (id: number) =>
   request<void>(`/loans/${id}/`, { method: 'DELETE' });
+
+// Borrower
+export const borrowerGetBooks  = () => request<Book[]>('/borrower/books/');
+export const borrowerBorrow    = (book_id: number) =>
+  request<Loan>('/borrower/borrow/', { method: 'POST', body: JSON.stringify({ book_id }) });
+export const borrowerReturn    = (loan_id: number) =>
+  request<Loan>(`/borrower/return/${loan_id}/`, { method: 'POST' });
+export const borrowerHistory   = () => request<Loan[]>('/borrower/history/');
+
+// Superadmin
+export interface StaffUser {
+  id: number;
+  username: string;
+  email: string;
+  first_name: string;
+  last_name: string;
+  is_active: boolean;
+  date_joined: string;
+}
+
+export interface SuperadminStats {
+  total_books: number;
+  total_authors: number;
+  total_members: number;
+  total_loans: number;
+  active_loans: number;
+  total_staff: number;
+}
+
+export const superadminGetStats  = () => request<SuperadminStats>('/superadmin/stats/');
+export const superadminGetStaff  = () => request<StaffUser[]>('/superadmin/staff/');
+export const superadminCreateStaff = (data: { username: string; password: string; email?: string; first_name?: string; last_name?: string }) =>
+  request<StaffUser>('/superadmin/staff/create/', { method: 'POST', body: JSON.stringify(data) });
+export const superadminToggleStaff = (id: number) =>
+  request<StaffUser>(`/superadmin/staff/${id}/toggle/`, { method: 'PATCH' });
+export const superadminDeleteStaff = (id: number) =>
+  request<void>(`/superadmin/staff/${id}/delete/`, { method: 'DELETE' });

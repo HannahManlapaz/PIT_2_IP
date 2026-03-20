@@ -1,3 +1,10 @@
+# Root configuration files
+settings.py
+urls.py
+wsgi.py
+asgi.py
+
+
 echo "venv/" >> .gitignore
 echo "__pycache__/" >> .gitignore
 echo "*.pyc" >> .gitignore

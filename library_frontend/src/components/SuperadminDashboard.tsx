@@ -89,9 +89,9 @@ const SuperadminDashboard: React.FC<Props> = ({ username, onLogout }) => {
       {/* ── Top Nav ── */}
       <nav className="bg-[#1a1209] border-b-2 border-yellow-600 px-8 py-4 flex items-center justify-between shadow-lg">
         <div className="flex items-center gap-3">
-          <img src={libraryIcon} alt="Bibliotheca" className="w-10 h-10 object-contain" />
+          <img src={libraryIcon} alt="Librium" className="w-10 h-10 object-contain" />
           <div>
-            <div style={{fontFamily:'Playfair Display, serif'}} className="text-yellow-500 text-lg font-bold">Bibliotheca</div>
+            <div style={{fontFamily:'Playfair Display, serif'}} className="text-yellow-500 text-lg font-bold">Librium</div>
             <div className="text-[#7a6a52] text-xs tracking-widest uppercase">Super Admin Portal</div>
           </div>
         </div>

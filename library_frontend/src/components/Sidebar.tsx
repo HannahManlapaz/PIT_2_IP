@@ -32,7 +32,7 @@ const Sidebar: React.FC<Props> = ({ username, onLogout }) => {
     <aside className="fixed top-0 left-0 w-64 h-screen bg-[#1a1209] border-r-2 border-yellow-600 flex flex-col z-50">
       <div className="px-6 py-7 border-b border-yellow-900/40">
         <div style={{fontFamily:'Playfair Display, serif'}} className="text-yellow-500 text-xl font-bold leading-tight">
-          Bibliotheca
+          Librium
         </div>
         <div className="text-[#7a6a52] text-xs tracking-widest uppercase mt-1">
           Library Management System

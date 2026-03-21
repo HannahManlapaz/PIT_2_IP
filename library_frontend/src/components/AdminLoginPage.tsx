@@ -10,14 +10,18 @@ interface Props {
 const AdminLoginPage: React.FC<Props> = ({ onLogin }) => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [error,    setError]    = useState('');
-  const [loading,  setLoading]  = useState(false);
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!username || !password) { setError('Please enter username and password.'); return; }
+    if (!username || !password) {
+      setError('Please enter username and password.');
+      return;
+    }
     try {
-      setLoading(true); setError('');
+      setLoading(true);
+      setError('');
       const data = await loginApi(username, password);
       if (data.token) {
         if (data.role === 'borrower') {
@@ -36,93 +40,202 @@ const AdminLoginPage: React.FC<Props> = ({ onLogin }) => {
   };
 
   return (
-    <div className="min-h-screen bg-[#0f0a04] flex items-center justify-center p-4 relative overflow-hidden">
-      <div className="absolute inset-0"
-        style={{ backgroundImage: 'repeating-linear-gradient(45deg, #c9a84c08 0, #c9a84c08 1px, transparent 0, transparent 50%)', backgroundSize: '28px 28px' }} />
-      <div className="absolute inset-0"
-        style={{ background: 'radial-gradient(ellipse at center, #6b1d2a22 0%, transparent 70%)' }} />
-      <div className="absolute top-0 left-0 right-0 h-[3px] bg-gradient-to-r from-transparent via-yellow-600 to-transparent" />
+    <div className="min-h-screen flex relative overflow-hidden bg-gradient-to-br from-stone-950 via-stone-900 to-burgundy-950">
+      {/* Premium Background Patterns */}
+      <div className="absolute inset-0 opacity-20">
+        <div className="absolute inset-0" style={{
+          backgroundImage: `url("data:image/svg+xml,%3Csvg width='80' height='80' viewBox='0 0 80 80' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23c9a84c' fill-opacity='0.15'%3E%3Cpath d='M40 0 L80 20 L80 60 L40 80 L0 60 L0 20 Z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
+          backgroundSize: '60px 60px'
+        }} />
+      </div>
+      
+      {/* Diagonal Lines Pattern */}
+      <div className="absolute inset-0 opacity-10" style={{
+        backgroundImage: `repeating-linear-gradient(45deg, #c9a84c20 0px, #c9a84c20 2px, transparent 2px, transparent 8px)`,
+      }} />
+      
+      {/* Glow Effect */}
+      <div className="absolute top-1/4 right-0 w-96 h-96 bg-burgundy-500/20 rounded-full blur-3xl" />
+      <div className="absolute bottom-1/4 left-0 w-96 h-96 bg-amber-500/10 rounded-full blur-3xl" />
 
-      <div className="relative w-full max-w-md z-10">
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-20 h-20 rounded-full border-2 border-yellow-600 bg-[#1a1209] mb-4 shadow-lg"
-            style={{ boxShadow: '0 0 24px #c9a84c33' }}>
-            <img src={libraryIcon} alt="Bibliotheca" className="w-14 h-14 object-contain" />
+      {/* Left Side - Admin Branding */}
+      <div className="hidden lg:flex lg:w-1/2 relative items-center justify-center p-12">
+        <div className="relative z-10 max-w-md">
+          {/* Premium Badge */}
+          <div className="mb-8">
+            <div className="inline-flex items-center gap-3 px-4 py-2 bg-white/5 backdrop-blur-sm rounded-full border border-amber-500/30">
+              <div className="w-2 h-2 bg-amber-500 rounded-full animate-pulse" />
+              <span className="text-amber-500 text-xs uppercase tracking-wider font-semibold">Administrator Access</span>
+            </div>
           </div>
-          <h1 style={{fontFamily:'Playfair Display, serif'}}
-            className="text-4xl font-bold text-yellow-500 mb-1 tracking-wide">
-            Bibliotheca
-          </h1>
-          <p className="text-[#7a6a52] text-xs tracking-[0.25em] uppercase">
+
+          {/* Large Logo */}
+          <div className="mb-8">
+            <div className="w-24 h-24 bg-gradient-to-br from-amber-500/10 to-burgundy-500/10 rounded-2xl backdrop-blur-sm flex items-center justify-center border border-amber-500/30">
+              <img src={libraryIcon} alt="Library" className="w-20 h-20 object-contain opacity-90" />
+            </div>
+          </div>
+          
+          <h1 className="text-5xl font-light text-white mb-4 tracking-tight">
             Admin Portal
+          </h1>
+          <p className="text-amber-400/80 text-lg mb-6 font-crimson">
+            Library Management System
           </p>
+          
+          <div className="space-y-4 mb-8">
+            <div className="flex items-center gap-3 text-white/60 text-sm">
+              <div className="w-8 h-8 rounded-full bg-amber-500/20 flex items-center justify-center">
+                <svg className="w-4 h-4 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                </svg>
+              </div>
+              <span>Manage library collections</span>
+            </div>
+            <div className="flex items-center gap-3 text-white/60 text-sm">
+              <div className="w-8 h-8 rounded-full bg-amber-500/20 flex items-center justify-center">
+                <svg className="w-4 h-4 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                </svg>
+              </div>
+              <span>Oversee user accounts</span>
+            </div>
+            <div className="flex items-center gap-3 text-white/60 text-sm">
+              <div className="w-8 h-8 rounded-full bg-amber-500/20 flex items-center justify-center">
+                <svg className="w-4 h-4 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+              </div>
+              <span>Generate reports & analytics</span>
+            </div>
+          </div>
+          
+          <blockquote className="text-white/40 text-sm italic font-crimson border-l-2 border-amber-500/30 pl-4">
+            "Libraries store the energy that fuels the imagination."
+            <footer className="text-amber-500/40 text-xs mt-1 not-italic">
+              — Sidney Sheldon
+            </footer>
+          </blockquote>
         </div>
+      </div>
 
-        <div className="rounded-xl overflow-hidden shadow-2xl"
-          style={{ boxShadow: '0 0 0 1px #c9a84c44, 0 25px 50px #00000088' }}>
-
-          <div className="bg-gradient-to-r from-[#6b1d2a] to-[#4a1320] px-7 py-5 border-b border-yellow-900/30">
-            <h2 style={{fontFamily:'Playfair Display, serif'}}
-              className="text-white text-xl font-semibold tracking-wide">
-              Staff Login
-            </h2>
-            <p className="text-red-300/70 text-xs italic mt-0.5">
-              Authorized personnel only
+      {/* Right Side - Login Form */}
+      <div className="w-full lg:w-1/2 relative flex items-center justify-center p-6 lg:p-12">
+        {/* Glassmorphism Card */}
+        <div className="w-full max-w-md relative z-10">
+          {/* Mobile Logo */}
+          <div className="lg:hidden text-center mb-8">
+            <div className="inline-flex items-center justify-center w-20 h-20 mb-4 bg-gradient-to-br from-amber-500/10 to-burgundy-500/10 rounded-2xl backdrop-blur-sm border border-amber-500/30">
+              <img src={libraryIcon} alt="Library" className="w-16 h-16 object-contain" />
+            </div>
+            <h1 className="text-2xl font-light text-white">
+              Admin Portal
+            </h1>
+            <p className="text-amber-400/70 text-sm mt-1">
+              Library Management System
             </p>
           </div>
 
-          <div className="bg-[#f5f0e8] px-7 py-7">
-            {error && (
-              <div className="bg-red-50 border border-red-300 text-red-700 px-4 py-3 rounded-lg mb-5 text-sm flex items-center gap-2">
-                <span>⚠️</span> {error}
+          {/* Login Card */}
+          <div className="bg-white/10 backdrop-blur-xl rounded-2xl border border-white/10 shadow-2xl overflow-hidden">
+            <div className="px-8 pt-8 pb-8">
+              <div className="mb-6">
+                <h2 className="text-2xl font-light text-white mb-2">
+                  Welcome back
+                </h2>
+                <p className="text-white/50 text-sm">
+                  Sign in to access the admin dashboard
+                </p>
               </div>
-            )}
 
-            <div className="mb-5">
-              <label style={{fontFamily:'Playfair Display, serif'}}
-                className="block text-sm font-semibold text-[#3d2f1a] mb-1.5 tracking-wide">
-                Username
-              </label>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#7a6a52] text-sm">👤</span>
-                <input type="text" value={username} onChange={e => setUsername(e.target.value)}
-                  className="w-full pl-9 pr-4 py-2.5 border border-[#cfc4aa] rounded-lg bg-white text-[#1a1209] focus:outline-none focus:border-[#6b1d2a] focus:ring-2 focus:ring-[#6b1d2a]/20 transition-all text-sm"
-                  placeholder="Enter your username" autoFocus />
-              </div>
+              {error && (
+                <div className="mb-6 p-3 bg-red-500/10 border border-red-500/30 rounded-lg backdrop-blur-sm">
+                  <p className="text-red-400 text-sm text-center">{error}</p>
+                </div>
+              )}
+
+              <form onSubmit={handleSubmit} className="space-y-5">
+                <div>
+                  <label className="block text-white/70 text-sm font-medium mb-2">
+                    Username
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40 text-sm">👤</span>
+                    <input
+                      type="text"
+                      value={username}
+                      onChange={(e) => setUsername(e.target.value)}
+                      className="w-full pl-9 pr-4 py-2.5 bg-white/5 border border-white/10 rounded-lg text-white placeholder-white/30 focus:outline-none focus:border-amber-500/50 focus:ring-2 focus:ring-amber-500/20 transition-all duration-200"
+                      placeholder="Admin username"
+                      autoFocus
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-white/70 text-sm font-medium mb-2">
+                    Password
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40 text-sm">🔒</span>
+                    <input
+                      type="password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      className="w-full pl-9 pr-4 py-2.5 bg-white/5 border border-white/10 rounded-lg text-white placeholder-white/30 focus:outline-none focus:border-amber-500/50 focus:ring-2 focus:ring-amber-500/20 transition-all duration-200"
+                      placeholder="••••••••"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between pt-2">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" className="w-4 h-4 rounded border-white/20 bg-white/5 text-amber-500 focus:ring-amber-500/20" />
+                    <span className="text-white/50 text-sm">Remember me</span>
+                  </label>
+                  <a href="#" className="text-amber-400/70 hover:text-amber-400 text-sm transition-colors">
+                    Forgot password?
+                  </a>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full py-2.5 bg-gradient-to-r from-amber-600 to-amber-500 text-white rounded-lg font-medium hover:from-amber-500 hover:to-amber-400 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed mt-4 shadow-lg shadow-amber-500/20"
+                >
+                  {loading ? (
+                    <span className="flex items-center justify-center gap-2">
+                      <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                      </svg>
+                      Authenticating...
+                    </span>
+                  ) : 'Sign In to Admin Dashboard'}
+                </button>
+
+                <div className="text-center pt-4">
+                  <p className="text-white/40 text-xs">
+                    This area is restricted to authorized personnel only
+                  </p>
+                  <a href="/borrower-login" className="inline-block mt-3 text-amber-400/60 hover:text-amber-400 text-sm transition-colors">
+                    ← Back to Borrower Portal
+                  </a>
+                </div>
+              </form>
             </div>
+          </div>
 
-            <div className="mb-7">
-              <label style={{fontFamily:'Playfair Display, serif'}}
-                className="block text-sm font-semibold text-[#3d2f1a] mb-1.5 tracking-wide">
-                Password
-              </label>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#7a6a52] text-sm">🔒</span>
-                <input type="password" value={password} onChange={e => setPassword(e.target.value)}
-                  className="w-full pl-9 pr-4 py-2.5 border border-[#cfc4aa] rounded-lg bg-white text-[#1a1209] focus:outline-none focus:border-[#6b1d2a] focus:ring-2 focus:ring-[#6b1d2a]/20 transition-all text-sm"
-                  placeholder="Enter your password" />
-              </div>
+          {/* Security Badge */}
+          <div className="mt-6 text-center">
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-white/50 rounded-full backdrop-blur-sm border border-white/10">
+              <svg className="w-3 h-3 text-black-500" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M2.166 4.999A11.954 11.954 0 0010 1.944 11.954 11.954 0 0017.834 5c.11.65.166 1.32.166 2.001 0 5.225-3.34 9.67-8 11.317C5.34 16.67 2 12.225 2 7c0-.682.057-1.35.166-2.001zm11.541 3.708a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+              </svg>
+              <span className="text-black text-xs">Secure admin access • Encrypted connection</span>
             </div>
-
-            <button type="button" onClick={handleSubmit} disabled={loading}
-              className="w-full py-3 rounded-lg font-bold text-base tracking-wide transition-all disabled:opacity-60 relative overflow-hidden group"
-              style={{
-                fontFamily:'Playfair Display, serif',
-                background: 'linear-gradient(135deg, #6b1d2a 0%, #8c2f3f 100%)',
-                color: 'white',
-                boxShadow: '0 4px 15px #6b1d2a55'
-              }}>
-              <span className="relative z-10">{loading ? 'Signing in…' : 'Sign In'}</span>
-              <div className="absolute inset-0 bg-white opacity-0 group-hover:opacity-10 transition-opacity" />
-            </button>
-
-            
           </div>
         </div>
-
-        <p className="text-center text-[#3d2f1a]/40 text-xs italic mt-6 px-4">
-          "A library is not a luxury but one of the necessities of life."
-        </p>
       </div>
     </div>
   );

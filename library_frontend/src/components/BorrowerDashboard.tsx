@@ -12,8 +12,7 @@ interface Props {
 }
 
 // ─────────────────────────────────────────────────────────────
-// BookCard — description pops up as a floating box above the
-// button so it does NOT push or shift the grid layout
+// BookCard — About + Borrow always at same position on every card
 // ─────────────────────────────────────────────────────────────
 const BookCard: React.FC<{
   book: Book;
@@ -23,7 +22,7 @@ const BookCard: React.FC<{
   const [showDesc, setShowDesc] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
-  // Close when clicking outside the card
+  // Close when clicking outside
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
       if (ref.current && !ref.current.contains(e.target as Node)) {
@@ -35,9 +34,11 @@ const BookCard: React.FC<{
   }, [showDesc]);
 
   return (
-    <div ref={ref} className="flex flex-col bg-white rounded-lg border border-[#cfc4aa] shadow-sm hover:shadow-lg hover:border-yellow-500 transition-all duration-200 overflow-visible group"
-      style={{ position: 'relative' }}>
-
+    <div
+      ref={ref}
+      className="flex flex-col bg-white rounded-lg border border-[#cfc4aa] shadow-sm hover:shadow-lg hover:border-yellow-500 transition-all duration-200 overflow-visible group"
+      style={{ position: 'relative' }}
+    >
       {/* Cover image */}
       <div className="relative w-full aspect-[2/3] bg-[#f0ebe0] overflow-hidden rounded-t-lg">
         {book.cover_image_url ? (
@@ -46,7 +47,6 @@ const BookCard: React.FC<{
         ) : (
           <div className="w-full h-full flex items-center justify-center text-4xl text-[#cfc4aa]">📖</div>
         )}
-        {/* Status badge */}
         <div className={`absolute top-2 right-2 px-2 py-0.5 rounded-full text-xs font-semibold ${
           book.available
             ? 'bg-green-100 text-green-700 border border-green-300'
@@ -63,27 +63,29 @@ const BookCard: React.FC<{
           {book.title}
         </h3>
         <p className="text-xs text-[#7a6a52] italic mb-1 truncate">{book.author_name}</p>
-        <p className="text-xs text-[#cfc4aa] mb-3">{book.publication_year}</p>
+        <p className="text-xs text-[#cfc4aa]">{book.publication_year}</p>
 
-        {/* About button + floating description */}
-        <div className="relative mb-2 flex justify-end">
-          <button
-            onClick={() => setShowDesc(prev => !prev)}
-            className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide border transition-colors ${
-              showDesc
-                ? 'bg-red-50 text-red-600 border-red-200'
-                : 'bg-green-50 text-green-700 border-green-200'
-            }`}
-          >
-            About {showDesc ? '▴' : '▾'}
-          </button>
+        {/* ✅ mt-auto forces About + Borrow to always sit at the bottom equally */}
+        <div className="mt-auto pt-3 flex flex-col gap-2">
 
-          {/* ✅ Floating description box — appears ABOVE the button, does NOT affect grid */}
-          {showDesc && (
-            <div
-              style={{
+          {/* About button row */}
+          <div className="flex justify-end relative">
+            <button
+              onClick={() => setShowDesc(prev => !prev)}
+              className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide border transition-colors ${
+                showDesc
+                  ? 'bg-red-50 text-red-600 border-red-200'
+                  : 'bg-green-50 text-green-700 border-green-200'
+              }`}
+            >
+              About {showDesc ? '▴' : '▾'}
+            </button>
+
+            {/* Floating description — does not affect layout */}
+            {showDesc && (
+              <div style={{
                 position: 'absolute',
-                bottom: '110%',       // floats above the button
+                bottom: '110%',
                 right: 0,
                 width: '220px',
                 zIndex: 50,
@@ -93,46 +95,44 @@ const BookCard: React.FC<{
                 boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
                 padding: '12px',
                 animation: 'fadeUp 0.2s ease',
-              }}
-            >
-              {/* Arrow pointing down */}
-              <div style={{
-                position: 'absolute',
-                bottom: '-7px',
-                right: '18px',
-                width: '13px',
-                height: '13px',
-                backgroundColor: '#fff',
-                border: '1px solid #e0ddd6',
-                borderTop: 'none',
-                borderLeft: 'none',
-                transform: 'rotate(45deg)',
-              }} />
-              <p className="text-xs text-[#7a6a52] font-bold uppercase tracking-wide mb-1">
-                About this book
-              </p>
-              <p className="text-xs text-[#555] leading-relaxed">
-                {(book as any).description || 'No description available for this book.'}
-              </p>
-            </div>
-          )}
-        </div>
+              }}>
+                <div style={{
+                  position: 'absolute',
+                  bottom: '-7px',
+                  right: '18px',
+                  width: '13px',
+                  height: '13px',
+                  backgroundColor: '#fff',
+                  border: '1px solid #e0ddd6',
+                  borderTop: 'none',
+                  borderLeft: 'none',
+                  transform: 'rotate(45deg)',
+                }} />
+                <p className="text-xs text-[#7a6a52] font-bold uppercase tracking-wide mb-1">
+                  About this book
+                </p>
+                <p className="text-xs text-[#555] leading-relaxed">
+                  {(book as any).description || 'No description available for this book.'}
+                </p>
+              </div>
+            )}
+          </div>
 
-        {/* Borrow button */}
-        <button
-          onClick={() => onBorrow(book)}
-          disabled={!book.available || borrowing === book.id}
-          className={`mt-auto w-full py-1.5 text-xs rounded font-semibold transition-colors ${
-            book.available
-              ? 'bg-[#6b1d2a] text-white hover:bg-[#8c2f3f]'
-              : 'bg-[#e2d9c4] text-[#cfc4aa] cursor-not-allowed'
-          }`}
-        >
-          {borrowing === book.id ? 'Borrowing…' : book.available ? 'Borrow' : 'Unavailable'}
-        </button>
+          {/* Borrow button */}
+          <button
+            onClick={() => onBorrow(book)}
+            disabled={!book.available || borrowing === book.id}
+            className={`w-full py-1.5 text-xs rounded font-semibold transition-colors ${
+              book.available
+                ? 'bg-[#6b1d2a] text-white hover:bg-[#8c2f3f]'
+                : 'bg-[#e2d9c4] text-[#cfc4aa] cursor-not-allowed'
+            }`}
+          >
+            {borrowing === book.id ? 'Borrowing…' : book.available ? 'Borrow' : 'Unavailable'}
+          </button>
+        </div>
       </div>
 
-      {/* Fade-up animation */}
       <style>{`
         @keyframes fadeUp {
           from { opacity: 0; transform: translateY(6px); }
@@ -278,7 +278,6 @@ const BorrowerDashboard: React.FC<Props> = ({ username, memberId, onLogout }) =>
             {loading ? (
               <div className="text-center py-20 text-[#7a6a52] italic">Loading books…</div>
             ) : (
-              // ✅ overflow-visible so the floating description is not clipped
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6" style={{ overflow: 'visible' }}>
                 {filteredBooks.map(book => (
                   <BookCard

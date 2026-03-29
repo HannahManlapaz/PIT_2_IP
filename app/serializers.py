@@ -11,10 +11,11 @@ class AuthorSerializer(serializers.ModelSerializer):
 class BookSerializer(serializers.ModelSerializer):
     author_name     = serializers.SerializerMethodField()
     cover_image_url = serializers.SerializerMethodField()
+    
 
     class Meta:
         model = Book
-        fields = ['id', 'title', 'isbn', 'publication_year', 'author', 'author_name', 'available', 'cover_image', 'cover_image_url']
+        fields = ['id', 'title', 'isbn', 'publication_year', 'author', 'author_name', 'available', 'cover_image', 'cover_image_url', 'description']
 
     def get_author_name(self, obj):
         return obj.author.name if obj.author else None

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { Book, Loan } from '../types';
 import { borrowerGetBooks, borrowerBorrow, borrowerReturnRequest, borrowerHistory, logoutApi } from '../api';
 import libraryIcon from '../assets/library-icon.png';
@@ -11,14 +11,149 @@ interface Props {
   onLogout: () => void;
 }
 
+// ─────────────────────────────────────────────────────────────
+// BookCard — description pops up as a floating box above the
+// button so it does NOT push or shift the grid layout
+// ─────────────────────────────────────────────────────────────
+const BookCard: React.FC<{
+  book: Book;
+  borrowing: number | null;
+  onBorrow: (book: Book) => void;
+}> = ({ book, borrowing, onBorrow }) => {
+  const [showDesc, setShowDesc] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  // Close when clicking outside the card
+  useEffect(() => {
+    const handleClick = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setShowDesc(false);
+      }
+    };
+    if (showDesc) document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [showDesc]);
+
+  return (
+    <div ref={ref} className="flex flex-col bg-white rounded-lg border border-[#cfc4aa] shadow-sm hover:shadow-lg hover:border-yellow-500 transition-all duration-200 overflow-visible group"
+      style={{ position: 'relative' }}>
+
+      {/* Cover image */}
+      <div className="relative w-full aspect-[2/3] bg-[#f0ebe0] overflow-hidden rounded-t-lg">
+        {book.cover_image_url ? (
+          <img src={book.cover_image_url} alt={book.title}
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center text-4xl text-[#cfc4aa]">📖</div>
+        )}
+        {/* Status badge */}
+        <div className={`absolute top-2 right-2 px-2 py-0.5 rounded-full text-xs font-semibold ${
+          book.available
+            ? 'bg-green-100 text-green-700 border border-green-300'
+            : 'bg-red-100 text-red-700 border border-red-300'
+        }`}>
+          {book.available ? 'Available' : 'On Loan'}
+        </div>
+      </div>
+
+      {/* Info */}
+      <div className="flex flex-col flex-1 p-3">
+        <h3 style={{ fontFamily: 'Playfair Display, serif' }}
+          className="text-sm font-semibold text-[#1a1209] leading-tight mb-1 line-clamp-2">
+          {book.title}
+        </h3>
+        <p className="text-xs text-[#7a6a52] italic mb-1 truncate">{book.author_name}</p>
+        <p className="text-xs text-[#cfc4aa] mb-3">{book.publication_year}</p>
+
+        {/* About button + floating description */}
+        <div className="relative mb-2 flex justify-end">
+          <button
+            onClick={() => setShowDesc(prev => !prev)}
+            className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide border transition-colors ${
+              showDesc
+                ? 'bg-red-50 text-red-600 border-red-200'
+                : 'bg-green-50 text-green-700 border-green-200'
+            }`}
+          >
+            About {showDesc ? '▴' : '▾'}
+          </button>
+
+          {/* ✅ Floating description box — appears ABOVE the button, does NOT affect grid */}
+          {showDesc && (
+            <div
+              style={{
+                position: 'absolute',
+                bottom: '110%',       // floats above the button
+                right: 0,
+                width: '220px',
+                zIndex: 50,
+                backgroundColor: '#fff',
+                border: '1px solid #e0ddd6',
+                borderRadius: '10px',
+                boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
+                padding: '12px',
+                animation: 'fadeUp 0.2s ease',
+              }}
+            >
+              {/* Arrow pointing down */}
+              <div style={{
+                position: 'absolute',
+                bottom: '-7px',
+                right: '18px',
+                width: '13px',
+                height: '13px',
+                backgroundColor: '#fff',
+                border: '1px solid #e0ddd6',
+                borderTop: 'none',
+                borderLeft: 'none',
+                transform: 'rotate(45deg)',
+              }} />
+              <p className="text-xs text-[#7a6a52] font-bold uppercase tracking-wide mb-1">
+                About this book
+              </p>
+              <p className="text-xs text-[#555] leading-relaxed">
+                {(book as any).description || 'No description available for this book.'}
+              </p>
+            </div>
+          )}
+        </div>
+
+        {/* Borrow button */}
+        <button
+          onClick={() => onBorrow(book)}
+          disabled={!book.available || borrowing === book.id}
+          className={`mt-auto w-full py-1.5 text-xs rounded font-semibold transition-colors ${
+            book.available
+              ? 'bg-[#6b1d2a] text-white hover:bg-[#8c2f3f]'
+              : 'bg-[#e2d9c4] text-[#cfc4aa] cursor-not-allowed'
+          }`}
+        >
+          {borrowing === book.id ? 'Borrowing…' : book.available ? 'Borrow' : 'Unavailable'}
+        </button>
+      </div>
+
+      {/* Fade-up animation */}
+      <style>{`
+        @keyframes fadeUp {
+          from { opacity: 0; transform: translateY(6px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+      `}</style>
+    </div>
+  );
+};
+
+// ─────────────────────────────────────────────
+// Main Dashboard
+// ─────────────────────────────────────────────
 const BorrowerDashboard: React.FC<Props> = ({ username, memberId, onLogout }) => {
-  const [books,   setBooks]   = useState<Book[]>([]);
-  const [history, setHistory] = useState<Loan[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [tab,     setTab]     = useState<'browse' | 'history'>('browse');
-  const [search,  setSearch]  = useState('');
-  const [error,   setError]   = useState('');
-  const [success, setSuccess] = useState('');
+  const [books,     setBooks]     = useState<Book[]>([]);
+  const [history,   setHistory]   = useState<Loan[]>([]);
+  const [loading,   setLoading]   = useState(true);
+  const [tab,       setTab]       = useState<'browse' | 'history'>('browse');
+  const [search,    setSearch]    = useState('');
+  const [error,     setError]     = useState('');
+  const [success,   setSuccess]   = useState('');
   const [borrowing, setBorrowing] = useState<number | null>(null);
   const [returning, setReturning] = useState<number | null>(null);
 
@@ -57,12 +192,8 @@ const BorrowerDashboard: React.FC<Props> = ({ username, memberId, onLogout }) =>
       try {
         const msg = JSON.parse((e as Error).message);
         setError(msg.error || 'Failed to submit return request.');
-      } catch {
-        setError('Failed to submit return request.');
-      }
-    } finally {
-      setReturning(null);
-    }
+      } catch { setError('Failed to submit return request.'); }
+    } finally { setReturning(null); }
   };
 
   const handleLogout = async () => {
@@ -81,12 +212,13 @@ const BorrowerDashboard: React.FC<Props> = ({ username, memberId, onLogout }) =>
 
   return (
     <div className="min-h-screen bg-[#f5f0e8]">
-      {/* ── Top Nav ── */}
+
+      {/* Top Nav */}
       <nav className="bg-[#1a1209] border-b-2 border-yellow-600 px-8 py-4 flex items-center justify-between shadow-lg">
         <div className="flex items-center gap-3">
           <img src={libraryIcon} alt="Librium" className="w-10 h-10 object-contain" />
           <div>
-            <div style={{fontFamily:'Playfair Display, serif'}} className="text-yellow-500 text-lg font-bold">Librium</div>
+            <div style={{ fontFamily: 'Playfair Display, serif' }} className="text-yellow-500 text-lg font-bold">Librium</div>
             <div className="text-[#7a6a52] text-xs tracking-widest uppercase">Library Borrower Portal</div>
           </div>
         </div>
@@ -101,7 +233,7 @@ const BorrowerDashboard: React.FC<Props> = ({ username, memberId, onLogout }) =>
 
       <div className="max-w-6xl mx-auto p-8">
 
-        {/* ── Stats ── */}
+        {/* Stats */}
         <div className="grid grid-cols-3 gap-4 mb-8">
           <div className="bg-white rounded-lg border border-[#cfc4aa] p-5 text-center shadow-sm">
             <div className="text-3xl font-bold text-yellow-600">{books.filter(b => b.available).length}</div>
@@ -119,28 +251,24 @@ const BorrowerDashboard: React.FC<Props> = ({ username, memberId, onLogout }) =>
           </div>
         </div>
 
-        {/* ── Alerts ── */}
+        {/* Alerts */}
         {error   && <div className="mb-4 px-4 py-3 bg-red-50 border border-red-300 text-red-700 rounded-lg text-sm flex items-center gap-2"><span>⚠️</span>{error}</div>}
         {success && <div className="mb-4 px-4 py-3 bg-green-50 border border-green-300 text-green-700 rounded-lg text-sm flex items-center gap-2"><span>✅</span>{success}</div>}
 
-        {/* ── Tabs ── */}
-<div className="flex gap-2 mb-6 border-b-2 border-[#e2d9c4]">
-  {(['browse', 'history'] as const).map(t => (
-    <button key={t} onClick={() => setTab(t)}
-      className={`px-6 py-2 text-sm font-semibold transition-colors border-b-2 -mb-[2px] flex items-center gap-2 ${
-        tab === t ? 'border-yellow-600 text-[#1a1209]' : 'border-transparent text-[#7a6a52] hover:text-[#1a1209]'
-      }`} style={{fontFamily:'Playfair Display, serif'}}>
-      <img
-        src={t === 'browse' ? bookIcon : loanIcon}
-        alt={t}
-        className="w-5 h-5 object-contain"
-      />
-      {t === 'browse' ? 'Browse Books' : 'My Borrowing History'}
-    </button>
-  ))}
-</div>
+        {/* Tabs */}
+        <div className="flex gap-2 mb-6 border-b-2 border-[#e2d9c4]">
+          {(['browse', 'history'] as const).map(t => (
+            <button key={t} onClick={() => setTab(t)}
+              className={`px-6 py-2 text-sm font-semibold transition-colors border-b-2 -mb-[2px] flex items-center gap-2 ${
+                tab === t ? 'border-yellow-600 text-[#1a1209]' : 'border-transparent text-[#7a6a52] hover:text-[#1a1209]'
+              }`} style={{ fontFamily: 'Playfair Display, serif' }}>
+              <img src={t === 'browse' ? bookIcon : loanIcon} alt={t} className="w-5 h-5 object-contain" />
+              {t === 'browse' ? 'Browse Books' : 'My Borrowing History'}
+            </button>
+          ))}
+        </div>
 
-        {/* ── Browse Books ── */}
+        {/* Browse Books */}
         {tab === 'browse' && (
           <div>
             <input value={search} onChange={e => setSearch(e.target.value)}
@@ -150,44 +278,22 @@ const BorrowerDashboard: React.FC<Props> = ({ username, memberId, onLogout }) =>
             {loading ? (
               <div className="text-center py-20 text-[#7a6a52] italic">Loading books…</div>
             ) : (
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
+              // ✅ overflow-visible so the floating description is not clipped
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6" style={{ overflow: 'visible' }}>
                 {filteredBooks.map(book => (
-                  <div key={book.id} className="flex flex-col bg-white rounded-lg border border-[#cfc4aa] shadow-sm hover:shadow-lg hover:border-yellow-500 transition-all duration-200 overflow-hidden group">
-                    <div className="relative w-full aspect-[2/3] bg-[#f0ebe0] overflow-hidden">
-                      {book.cover_image_url ? (
-                        <img src={book.cover_image_url} alt={book.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-4xl text-[#cfc4aa]">📖</div>
-                      )}
-                      <div className={`absolute top-2 right-2 px-2 py-0.5 rounded-full text-xs font-semibold ${
-                        book.available ? 'bg-green-100 text-green-700 border border-green-300' : 'bg-red-100 text-red-700 border border-red-300'
-                      }`}>
-                        {book.available ? 'Available' : 'On Loan'}
-                      </div>
-                    </div>
-                    <div className="flex flex-col flex-1 p-3">
-                      <h3 style={{fontFamily:'Playfair Display, serif'}} className="text-sm font-semibold text-[#1a1209] leading-tight mb-1 line-clamp-2">{book.title}</h3>
-                      <p className="text-xs text-[#7a6a52] italic mb-1 truncate">{book.author_name}</p>
-                      <p className="text-xs text-[#cfc4aa] mb-3">{book.publication_year}</p>
-                      <button
-                        onClick={() => handleBorrow(book)}
-                        disabled={!book.available || borrowing === book.id}
-                        className={`mt-auto w-full py-1.5 text-xs rounded font-semibold transition-colors ${
-                          book.available
-                            ? 'bg-[#6b1d2a] text-white hover:bg-[#8c2f3f]'
-                            : 'bg-[#e2d9c4] text-[#cfc4aa] cursor-not-allowed'
-                        }`}>
-                        {borrowing === book.id ? 'Borrowing…' : book.available ? 'Borrow' : 'Unavailable'}
-                      </button>
-                    </div>
-                  </div>
+                  <BookCard
+                    key={book.id}
+                    book={book}
+                    borrowing={borrowing}
+                    onBorrow={handleBorrow}
+                  />
                 ))}
               </div>
             )}
           </div>
         )}
 
-        {/* ── Borrowing History ── */}
+        {/* Borrowing History */}
         {tab === 'history' && (
           <div>
             {loading ? (
@@ -195,7 +301,7 @@ const BorrowerDashboard: React.FC<Props> = ({ username, memberId, onLogout }) =>
             ) : history.length === 0 ? (
               <div className="text-center py-20 text-[#7a6a52]">
                 <div className="text-5xl mb-4">📭</div>
-                <div style={{fontFamily:'Playfair Display, serif'}} className="text-xl text-[#3d2f1a] mb-1">No borrowing history yet</div>
+                <div style={{ fontFamily: 'Playfair Display, serif' }} className="text-xl text-[#3d2f1a] mb-1">No borrowing history yet</div>
                 <div className="italic text-sm">Browse books and start borrowing!</div>
               </div>
             ) : (
@@ -204,7 +310,7 @@ const BorrowerDashboard: React.FC<Props> = ({ username, memberId, onLogout }) =>
                   <thead>
                     <tr className="bg-[#ede5d0] text-[#3d2f1a] text-left border-b-2 border-yellow-600">
                       {['Book', 'Loan Date', 'Due Date', 'Return Date', 'Status', 'Action'].map(h => (
-                        <th key={h} style={{fontFamily:'Playfair Display, serif'}} className="px-5 py-3 font-semibold text-xs tracking-wider uppercase">{h}</th>
+                        <th key={h} style={{ fontFamily: 'Playfair Display, serif' }} className="px-5 py-3 font-semibold text-xs tracking-wider uppercase">{h}</th>
                       ))}
                     </tr>
                   </thead>
@@ -222,11 +328,9 @@ const BorrowerDashboard: React.FC<Props> = ({ username, memberId, onLogout }) =>
                           </td>
                           <td className="px-5 py-3 text-[#7a6a52]">
                             {loan.return_verified_date ?? loan.return_date ?? (
-                              loan.return_requested_date ? (
-                                <em className="text-amber-700">Awaiting staff verification</em>
-                              ) : (
-                                <em className="text-[#cfc4aa]">Not yet returned</em>
-                              )
+                              loan.return_requested_date
+                                ? <em className="text-amber-700">Awaiting staff verification</em>
+                                : <em className="text-[#cfc4aa]">Not yet returned</em>
                             )}
                           </td>
                           <td className="px-5 py-3">

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Book, Loan } from '../types';
-import { borrowerGetBooks, borrowerBorrow, borrowerReturn, borrowerHistory, logoutApi } from '../api';
+import { borrowerGetBooks, borrowerBorrow, borrowerReturnRequest, borrowerHistory, logoutApi } from '../api';
 import libraryIcon from '../assets/library-icon.png';
 
 interface Props {
@@ -48,11 +48,19 @@ const BorrowerDashboard: React.FC<Props> = ({ username, memberId, onLogout }) =>
   const handleReturn = async (loan: Loan) => {
     try {
       setReturning(loan.id); setError(''); setSuccess('');
-      await borrowerReturn(loan.id);
-      setSuccess(`Successfully returned "${loan.book_title}"!`);
+      const res = await borrowerReturnRequest(loan.id);
+      setSuccess(res.message || `Return request submitted for "${loan.book_title}". Staff will verify when you bring the book in.`);
       await load();
-    } catch { setError('Failed to return book.'); }
-    finally { setReturning(null); }
+    } catch (e: unknown) {
+      try {
+        const msg = JSON.parse((e as Error).message);
+        setError(msg.error || 'Failed to submit return request.');
+      } catch {
+        setError('Failed to submit return request.');
+      }
+    } finally {
+      setReturning(null);
+    }
   };
 
   const handleLogout = async () => {
@@ -60,8 +68,9 @@ const BorrowerDashboard: React.FC<Props> = ({ username, memberId, onLogout }) =>
     onLogout();
   };
 
-  const activeLoans = history.filter(l => !l.return_date);
-  const isOverdue   = (loan: Loan) => !loan.return_date && (loan.overdue_days ?? 0) > 0;
+  const isLoanOpen = (l: Loan) => !(l.return_verified_date || l.return_date);
+  const activeLoans = history.filter(isLoanOpen);
+  const isOverdue   = (loan: Loan) => isLoanOpen(loan) && (loan.overdue_days ?? 0) > 0;
 
   const filteredBooks = books.filter(b =>
     b.title.toLowerCase().includes(search.toLowerCase()) ||
@@ -204,10 +213,20 @@ const BorrowerDashboard: React.FC<Props> = ({ username, memberId, onLogout }) =>
                           <td className="px-5 py-3">
                             <span className={overdue ? 'text-red-600 font-semibold' : 'text-[#7a6a52]'}>{loan.due_date ?? '—'}</span>
                           </td>
-                          <td className="px-5 py-3 text-[#7a6a52]">{loan.return_date ?? <em className="text-[#cfc4aa]">Not yet returned</em>}</td>
+                          <td className="px-5 py-3 text-[#7a6a52]">
+                            {loan.return_verified_date ?? loan.return_date ?? (
+                              loan.return_requested_date ? (
+                                <em className="text-amber-700">Awaiting staff verification</em>
+                              ) : (
+                                <em className="text-[#cfc4aa]">Not yet returned</em>
+                              )
+                            )}
+                          </td>
                           <td className="px-5 py-3">
-                            {loan.return_date ? (
+                            {loan.return_verified_date || loan.return_date ? (
                               <span className="px-2 py-1 rounded-full text-xs bg-green-100 text-green-700 font-semibold">Returned</span>
+                            ) : loan.return_requested_date ? (
+                              <span className="px-2 py-1 rounded-full text-xs bg-amber-100 text-amber-800 font-semibold">Pending verification</span>
                             ) : overdue ? (
                               <span className="px-2 py-1 rounded-full text-xs bg-red-100 text-red-700 font-semibold">⚠️ Overdue {loan.overdue_days}d</span>
                             ) : (
@@ -215,10 +234,18 @@ const BorrowerDashboard: React.FC<Props> = ({ username, memberId, onLogout }) =>
                             )}
                           </td>
                           <td className="px-5 py-3">
-                            {!loan.return_date && (
-                              <button onClick={() => handleReturn(loan)} disabled={returning === loan.id}
-                                className="px-3 py-1 text-xs border border-blue-300 text-blue-700 rounded hover:bg-blue-50 transition-colors disabled:opacity-60">
-                                {returning === loan.id ? 'Returning…' : '↩ Return'}
+                            {!loan.return_verified_date && !loan.return_date && (
+                              <button
+                                onClick={() => handleReturn(loan)}
+                                disabled={returning === loan.id || !!loan.return_requested_date}
+                                className="px-3 py-1 text-xs border border-blue-300 text-blue-700 rounded hover:bg-blue-50 transition-colors disabled:opacity-60"
+                                title={loan.return_requested_date ? 'Return already requested' : undefined}
+                              >
+                                {loan.return_requested_date
+                                  ? 'Pending…'
+                                  : returning === loan.id
+                                    ? 'Submitting…'
+                                    : '↩ Request return'}
                               </button>
                             )}
                           </td>

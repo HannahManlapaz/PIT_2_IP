@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Loan, Member, Book } from '../types';
-import { getLoans, createLoan, updateLoan, deleteLoan, getMembers, getBooks } from '../api';
+import { getLoans, createLoan, updateLoan, deleteLoan, getMembers, getBooks, verifyReturn, rejectReturn } from '../api';
 import Modal from './Modal';
 
 const today = () => new Date().toISOString().split('T')[0];
@@ -9,26 +9,31 @@ const emptyLoan = (): Omit<Loan, 'id' | 'member_name' | 'book_title' | 'due_date
 });
 
 const LoanTable: React.FC = () => {
-  const [loans,   setLoans]   = useState<Loan[]>([]);
+  const [loans, setLoans] = useState<Loan[]>([]);
   const [members, setMembers] = useState<Member[]>([]);
-  const [books,   setBooks]   = useState<Book[]>([]);
+  const [books, setBooks] = useState<Book[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error,   setError]   = useState('');
-  const [search,  setSearch]  = useState('');
-  const [filter,  setFilter]  = useState<'all'|'active'|'returned'|'overdue'>('all');
-  const [showForm,      setShowForm]      = useState(false);
-  const [editing,       setEditing]       = useState<Loan | null>(null);
+  const [error, setError] = useState('');
+  const [search, setSearch] = useState('');
+  const [filter, setFilter] = useState<'all'|'active'|'returned'|'overdue'|'pending'>('all');
+  const [showForm, setShowForm] = useState(false);
+  const [editing, setEditing] = useState<Loan | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<Loan | null>(null);
-  const [form,    setForm]    = useState(emptyLoan());
-  const [saving,  setSaving]  = useState(false);
+  const [verifyModal, setVerifyModal] = useState<Loan | null>(null);
+  const [verifyNotes, setVerifyNotes] = useState('');
+  const [form, setForm] = useState(emptyLoan());
+  const [saving, setSaving] = useState(false);
 
   const load = async () => {
     try {
       setLoading(true);
       const [l, m, b] = await Promise.all([getLoans(), getMembers(), getBooks()]);
       setLoans(l); setMembers(m); setBooks(b);
-    } catch { setError('Failed to load loans.'); }
-    finally { setLoading(false); }
+    } catch { 
+      setError('Failed to load loans.'); 
+    } finally { 
+      setLoading(false); 
+    }
   };
   useEffect(() => { load(); }, []);
 
@@ -37,10 +42,30 @@ const LoanTable: React.FC = () => {
     setForm({ member: loan.member, book: loan.book, loan_date: loan.loan_date, return_date: loan.return_date });
     setEditing(loan); setError(''); setShowForm(true);
   };
-  const markReturned = async (loan: Loan) => {
-    try { await updateLoan(loan.id, { ...loan, return_date: today() }); await load(); }
-    catch { setError('Failed to mark as returned.'); }
+  
+  const handleVerify = async (loan: Loan) => {
+    try {
+      await verifyReturn(loan.id, verifyNotes);
+      setVerifyModal(null);
+      setVerifyNotes('');
+      await load();
+    } catch (err: any) {
+      setError(err?.message || 'Failed to verify return.');
+    }
   };
+
+  const handleReject = async (loan: Loan) => {
+    const reason = prompt('Reason for rejection:');
+    if (reason) {
+      try {
+        await rejectReturn(loan.id, reason);
+        await load();
+      } catch (err: any) {
+        setError(err?.message || 'Failed to reject return.');
+      }
+    }
+  };
+
   const handleSave = async () => {
     if (!form.member || !form.book) { setError('Member and book are required.'); return; }
     try {
@@ -49,24 +74,33 @@ const LoanTable: React.FC = () => {
       setShowForm(false); await load();
     } catch (e: any) {
       setError(e?.message || 'Failed to save loan.');
+    } finally { 
+      setSaving(false); 
     }
-    finally { setSaving(false); }
   };
+  
   const handleDelete = async () => {
     if (!confirmDelete) return;
-    try { await deleteLoan(confirmDelete.id); setConfirmDelete(null); await load(); }
-    catch { setError('Failed to delete loan.'); }
+    try { 
+      await deleteLoan(confirmDelete.id); 
+      setConfirmDelete(null); 
+      await load(); 
+    } catch { 
+      setError('Failed to delete loan.'); 
+    }
   };
 
   const memberName = (id: number) => members.find(m => m.id === id)?.name ?? '—';
-  const bookTitle  = (id: number) => books.find(b => b.id === id)?.title ?? '—';
-  const isOverdue  = (loan: Loan) => !loan.return_date && (loan.overdue_days ?? 0) > 0;
+  const bookTitle = (id: number) => books.find(b => b.id === id)?.title ?? '—';
+  const isOverdue = (loan: Loan) => !loan.return_verified_date && (loan.overdue_days ?? 0) > 0;
+  const isPendingReturn = (loan: Loan) => loan.return_requested_date && !loan.return_verified_date;
 
   const filtered = loans
     .filter(l => {
-      if (filter === 'active')   return !l.return_date && !isOverdue(l);
-      if (filter === 'returned') return !!l.return_date;
-      if (filter === 'overdue')  return isOverdue(l);
+      if (filter === 'active') return !l.return_verified_date && !isOverdue(l) && !isPendingReturn(l);
+      if (filter === 'returned') return !!l.return_verified_date;
+      if (filter === 'overdue') return isOverdue(l);
+      if (filter === 'pending') return isPendingReturn(l);
       return true;
     })
     .filter(l =>
@@ -75,6 +109,7 @@ const LoanTable: React.FC = () => {
     );
 
   const overdueCount = loans.filter(l => isOverdue(l)).length;
+  const pendingCount = loans.filter(l => isPendingReturn(l)).length;
 
   if (loading) return (
     <div className="flex flex-col items-center justify-center py-20 gap-3 text-[#7a6a52]">
@@ -85,7 +120,7 @@ const LoanTable: React.FC = () => {
 
   return (
     <div>
-      {/* ── Header ── */}
+      {/* Header */}
       <div className="flex items-end justify-between mb-6 pb-4 border-b-2 border-[#e2d9c4] relative">
         <div className="absolute bottom-[-2px] left-0 w-16 h-[2px] bg-[#6b1d2a]" />
         <div>
@@ -93,6 +128,11 @@ const LoanTable: React.FC = () => {
           <p className="text-sm text-[#7a6a52] italic mt-1">Track book borrowing and returns</p>
         </div>
         <div className="flex items-center gap-3">
+          {pendingCount > 0 && (
+            <span className="px-3 py-1 bg-yellow-100 text-yellow-700 border border-yellow-300 rounded-full text-xs font-semibold animate-pulse">
+              ⏳ {pendingCount} Pending Return{pendingCount !== 1 ? 's' : ''}
+            </span>
+          )}
           {overdueCount > 0 && (
             <span className="px-3 py-1 bg-red-100 text-red-700 border border-red-300 rounded-full text-xs font-semibold">
               ⚠️ {overdueCount} Overdue
@@ -106,23 +146,28 @@ const LoanTable: React.FC = () => {
 
       {error && <div className="bg-red-50 border border-red-300 text-red-700 px-4 py-3 rounded mb-4 text-sm">{error}</div>}
 
-      {/* ── Table ── */}
+      {/* Table */}
       <div className="bg-white rounded-lg border border-[#cfc4aa] shadow-sm overflow-hidden">
         <div className="flex items-center justify-between px-5 py-3 bg-[#f5f0e8] border-b border-[#e2d9c4] flex-wrap gap-3">
           <input value={search} onChange={e => setSearch(e.target.value)}
             placeholder="Search by member or book…"
             className="px-4 py-2 border border-[#cfc4aa] rounded bg-white text-sm focus:outline-none focus:border-yellow-500 w-64" />
           <div className="flex items-center gap-2">
-            {(['all','active','overdue','returned'] as const).map(f => (
+            {(['all','active','pending','overdue','returned'] as const).map(f => (
               <button key={f} onClick={() => setFilter(f)}
                 className={`px-3 py-1 text-xs rounded font-semibold border transition-colors ${
                   filter === f
-                    ? f === 'overdue' ? 'bg-red-700 text-white border-red-700' : 'bg-[#6b1d2a] text-white border-[#6b1d2a]'
+                    ? f === 'overdue' ? 'bg-red-700 text-white border-red-700'
+                      : f === 'pending' ? 'bg-yellow-600 text-white border-yellow-600'
+                      : 'bg-[#6b1d2a] text-white border-[#6b1d2a]'
                     : 'bg-white text-[#3d2f1a] border-[#cfc4aa] hover:bg-[#f5f0e8]'
                 }`}>
                 {f.charAt(0).toUpperCase() + f.slice(1)}
                 {f === 'overdue' && overdueCount > 0 && (
                   <span className="ml-1 bg-red-200 text-red-800 rounded-full px-1.5 text-xs">{overdueCount}</span>
+                )}
+                {f === 'pending' && pendingCount > 0 && (
+                  <span className="ml-1 bg-yellow-200 text-yellow-800 rounded-full px-1.5 text-xs">{pendingCount}</span>
                 )}
               </button>
             ))}
@@ -137,7 +182,7 @@ const LoanTable: React.FC = () => {
                 <th key={h} style={{fontFamily:'Playfair Display, serif'}}
                   className="text-left px-4 py-3 text-xs font-semibold tracking-wider uppercase text-[#7a6a52]">{h}</th>
               ))}
-            </tr>
+             </tr>
           </thead>
           <tbody>
             {filtered.length === 0 ? (
@@ -148,9 +193,12 @@ const LoanTable: React.FC = () => {
               </td></tr>
             ) : filtered.map(loan => {
               const overdue = isOverdue(loan);
+              const pendingReturn = isPendingReturn(loan);
               return (
                 <tr key={loan.id} className={`border-b border-[#f0ebe0] transition-colors ${
-                  overdue ? 'bg-red-50 hover:bg-red-100' : 'hover:bg-[#fdfaf4]'
+                  overdue ? 'bg-red-50 hover:bg-red-100' : 
+                  pendingReturn ? 'bg-yellow-50 hover:bg-yellow-100' : 
+                  'hover:bg-[#fdfaf4]'
                 }`}>
                   <td className="px-4 py-3 font-semibold text-[#1a1209]">{memberName(loan.member)}</td>
                   <td className="px-4 py-3 text-[#3d2f1a]">{bookTitle(loan.book)}</td>
@@ -161,35 +209,53 @@ const LoanTable: React.FC = () => {
                     </span>
                   </td>
                   <td className="px-4 py-3 text-[#3d2f1a]">
-                    {loan.return_date ?? <em className="text-[#7a6a52]">Not yet returned</em>}
+                    {loan.return_verified_date ? (
+                      loan.return_verified_date
+                    ) : pendingReturn ? (
+                      <em className="text-yellow-600">Pending verification</em>
+                    ) : (
+                      <em className="text-[#7a6a52]">Not yet returned</em>
+                    )}
                   </td>
                   <td className="px-4 py-3">
-                    {loan.return_date ? (
-                      <span className="inline-block px-3 py-1 rounded-full text-xs font-semibold border bg-indigo-50 text-indigo-700 border-indigo-300">
+                    {loan.return_verified_date ? (
+                      <span className="inline-block px-3 py-1 rounded-full text-xs font-semibold border bg-green-50 text-green-700 border-green-300">
                         Returned
+                      </span>
+                    ) : pendingReturn ? (
+                      <span className="inline-block px-3 py-1 rounded-full text-xs font-semibold border bg-yellow-100 text-yellow-700 border-yellow-300 animate-pulse">
+                        Pending Verification
                       </span>
                     ) : overdue ? (
                       <span className="inline-block px-3 py-1 rounded-full text-xs font-semibold border bg-red-100 text-red-700 border-red-300">
-                        ⚠️ Overdue {loan.overdue_days}d
+                        Overdue {loan.overdue_days}d
                       </span>
                     ) : (
-                      <span className="inline-block px-3 py-1 rounded-full text-xs font-semibold border bg-yellow-50 text-yellow-700 border-yellow-300">
+                      <span className="inline-block px-3 py-1 rounded-full text-xs font-semibold border bg-blue-50 text-blue-700 border-blue-300">
                         Active
                       </span>
                     )}
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex gap-2 flex-wrap">
-                      {!loan.return_date && (
-                        <button onClick={() => markReturned(loan)}
+                      {pendingReturn && !loan.return_verified_date && (
+                        <>
+                          <button onClick={() => setVerifyModal(loan)}
+                            className="px-3 py-1 text-xs border border-green-300 text-green-700 rounded hover:bg-green-50 transition-colors">
+                            Verify Return
+                          </button>
+                          <button onClick={() => handleReject(loan)}
+                            className="px-3 py-1 text-xs border border-red-300 text-red-700 rounded hover:bg-red-50 transition-colors">
+                            Reject
+                          </button>
+                        </>
+                      )}
+                      {!loan.return_verified_date && !pendingReturn && (
+                        <button onClick={() => openEdit(loan)}
                           className="px-3 py-1 text-xs border border-blue-300 text-blue-700 rounded hover:bg-blue-50 transition-colors">
-                          ↩ Return
+                          Edit
                         </button>
                       )}
-                      <button onClick={() => openEdit(loan)}
-                        className="px-3 py-1 text-xs border border-green-300 text-green-700 rounded hover:bg-green-50 transition-colors">
-                        Edit
-                      </button>
                       <button onClick={() => setConfirmDelete(loan)}
                         className="px-3 py-1 text-xs border border-red-300 text-red-700 rounded hover:bg-red-50 transition-colors">
                         Delete
@@ -203,7 +269,7 @@ const LoanTable: React.FC = () => {
         </table>
       </div>
 
-      {/* ── New/Edit Loan Modal ── */}
+      {/* New/Edit Loan Modal */}
       {showForm && (
         <Modal title={editing ? 'Edit Loan' : 'New Loan'} onClose={() => setShowForm(false)}
           footer={<>
@@ -254,7 +320,31 @@ const LoanTable: React.FC = () => {
         </Modal>
       )}
 
-      {/* ── Delete Confirm Modal ── */}
+      {/* Verify Return Modal */}
+      {verifyModal && (
+        <Modal title="Verify Return" onClose={() => setVerifyModal(null)}
+          footer={<>
+            <button onClick={() => setVerifyModal(null)} className="px-4 py-2 border border-[#cfc4aa] rounded text-[#3d2f1a] hover:bg-[#e2d9c4] transition-colors text-sm">Cancel</button>
+            <button onClick={() => handleVerify(verifyModal)} className="px-5 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition-colors text-sm font-semibold">
+              Confirm Verification
+            </button>
+          </>}>
+          <div className="py-4">
+            <p className="text-[#3d2f1a] mb-2">Verify that the book has been physically returned:</p>
+            <p className="font-semibold text-[#1a1209]">{bookTitle(verifyModal.book)}</p>
+            <p className="text-sm text-[#7a6a52] mb-3">by {memberName(verifyModal.member)}</p>
+            <textarea
+              placeholder="Optional notes..."
+              value={verifyNotes}
+              onChange={(e) => setVerifyNotes(e.target.value)}
+              className="w-full mt-2 p-2 border border-[#cfc4aa] rounded"
+              rows={3}
+            />
+          </div>
+        </Modal>
+      )}
+
+      {/* Delete Confirm Modal */}
       {confirmDelete && (
         <Modal title="Delete Loan Record" onClose={() => setConfirmDelete(null)}
           footer={<>

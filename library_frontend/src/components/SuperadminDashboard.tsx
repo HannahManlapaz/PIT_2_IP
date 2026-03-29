@@ -2,9 +2,10 @@ import React, { useEffect, useState } from 'react';
 import {
   superadminGetStats, superadminGetStaff,
   superadminCreateStaff, superadminToggleStaff,
-  superadminDeleteStaff, StaffUser, SuperadminStats
+  superadminDeleteStaff, 
 } from '../api';
 import libraryIcon from '../assets/library-icon.png';
+import { StaffUser, SuperadminStats } from '../types';
 
 interface Props {
   username: string;

@@ -1,3 +1,4 @@
+// src/types.ts
 export interface Author {
   id: number;
   name: string;
@@ -35,6 +36,12 @@ export interface Loan {
   loan_date: string;
   due_date?: string | null;
   return_date: string | null;
+  return_requested_date?: string | null;
+  return_verified_date?: string | null;
+  return_status?: 'pending' | 'verified' | 'disputed';
+  verified_by?: number | null;
+  verified_by_name?: string | null;
+  notes?: string | null;
   overdue_days?: number;
 }
 
@@ -44,4 +51,40 @@ export interface AuthUser {
   role?: 'admin' | 'borrower' | 'superadmin';
   member_id?: number | null;
   error?: string;
+}
+
+export interface StaffUser {
+  id: number;
+  username: string;
+  email: string;
+  first_name: string;
+  last_name: string;
+  is_active: boolean;
+  date_joined: string;
+}
+
+export interface SuperadminStats {
+  total_books: number;
+  total_authors: number;
+  total_members: number;
+  total_loans: number;
+  active_loans: number;
+  pending_returns: number;
+  total_staff: number;
+}
+
+export interface AdminStats {
+  pending_returns: number;
+  active_loans: number;
+  overdue_loans: number;
+  total_members: number;
+  total_books: number;
+}
+
+export interface PendingReturn {
+  id: number;
+  book_title: string;
+  member_name: string;
+  return_requested_date: string;
+  notes?: string;
 }

@@ -31,14 +31,20 @@ class MemberSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 class LoanSerializer(serializers.ModelSerializer):
-    member_name  = serializers.SerializerMethodField()
-    book_title   = serializers.SerializerMethodField()
+    member_name = serializers.SerializerMethodField()
+    book_title = serializers.SerializerMethodField()
     overdue_days = serializers.SerializerMethodField()
+    verified_by_name = serializers.SerializerMethodField()
 
     class Meta:
         model = Loan
-        fields = ['id', 'member', 'book', 'member_name', 'book_title', 'loan_date', 'due_date', 'return_date', 'overdue_days']
-        read_only_fields = ['due_date']
+        fields = [
+            'id', 'member', 'book', 'member_name', 'book_title', 
+            'loan_date', 'due_date', 'return_date', 'return_requested_date',
+            'return_verified_date', 'return_status', 'verified_by', 
+            'verified_by_name', 'overdue_days', 'notes'
+        ]
+        read_only_fields = ['due_date', 'return_verified_date', 'verified_by']
 
     def get_member_name(self, obj):
         return obj.member.name if obj.member else None
@@ -47,16 +53,51 @@ class LoanSerializer(serializers.ModelSerializer):
         return obj.book.title if obj.book else None
 
     def get_overdue_days(self, obj):
-        if obj.return_date or not obj.due_date:
+        if obj.return_verified_date or not obj.due_date:
             return 0
         today = date.today()
         delta = (today - obj.due_date).days
         return max(0, delta)
+    
+    def get_verified_by_name(self, obj):
+        if obj.verified_by:
+            return obj.verified_by.username
+        return None
 
     def validate_book(self, value):
         instance = self.instance
+        # Allow borrowing if book is available OR if it's the same book being returned
         if not value.available and (instance is None or instance.book != value):
             raise serializers.ValidationError("This book is currently on loan and cannot be borrowed.")
+        return value
+
+
+class ReturnRequestSerializer(serializers.Serializer):
+    loan_id = serializers.IntegerField()
+    
+    def validate_loan_id(self, value):
+        try:
+            loan = Loan.objects.get(pk=value)
+            if loan.return_verified_date:
+                raise serializers.ValidationError("This book has already been returned.")
+            if loan.return_status == 'pending' and loan.return_requested_date:
+                raise serializers.ValidationError("Return already requested.")
+        except Loan.DoesNotExist:
+            raise serializers.ValidationError("Loan not found.")
+        return value
+
+
+class ReturnVerificationSerializer(serializers.Serializer):
+    loan_id = serializers.IntegerField()
+    notes = serializers.CharField(required=False, allow_blank=True)
+    
+    def validate_loan_id(self, value):
+        try:
+            loan = Loan.objects.get(pk=value)
+            if loan.return_verified_date:
+                raise serializers.ValidationError("This return has already been verified.")
+        except Loan.DoesNotExist:
+            raise serializers.ValidationError("Loan not found.")
         return value
 
 class RegisterSerializer(serializers.Serializer):

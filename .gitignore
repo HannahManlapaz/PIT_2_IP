@@ -4,3 +4,5 @@ echo "*.pyc" >> .gitignore
 echo ".env" >> .gitignore
 echo "node_modules/" >> .gitignore
 echo "media/" >> .gitignore
+.env
+__pycache__

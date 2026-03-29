@@ -34,12 +34,13 @@ const Dashboard: React.FC = () => {
       .finally(() => setLoading(false));
   }, []);
 
-  const activeLoans  = loans.filter(l => !l.return_date);
-  const overdueLoans = loans.filter(l => !l.return_date && (l.overdue_days ?? 0) > 0);
+  const isLoanOpen = (l: Loan) => !(l.return_verified_date || l.return_date);
+  const activeLoans  = loans.filter(isLoanOpen);
+  const overdueLoans = loans.filter(l => isLoanOpen(l) && (l.overdue_days ?? 0) > 0);
   const recentLoans  = [...loans]
     .sort((a, b) => new Date(b.loan_date).getTime() - new Date(a.loan_date).getTime())
     .slice(0, 5);
-  const isOverdue = (loan: Loan) => !loan.return_date && (loan.overdue_days ?? 0) > 0;
+  const isOverdue = (loan: Loan) => isLoanOpen(loan) && (loan.overdue_days ?? 0) > 0;
 
   const stats = [
     { icon: bookIcon,   label: 'Total Books',  value: books.length,       color: 'text-yellow-600', to: '/books'   },
@@ -134,9 +135,9 @@ const Dashboard: React.FC = () => {
                       <td className="px-5 py-3 text-[#3d2f1a]">{loan.member_name}</td>
                       <td className="px-5 py-3 text-[#7a6a52]">{loan.loan_date}</td>
                       <td className="px-5 py-3"><span className={overdue ? 'text-red-600 font-semibold' : 'text-[#7a6a52]'}>{loan.due_date ?? '—'}</span></td>
-                      <td className="px-5 py-3 text-[#7a6a52]">{loan.return_date ?? '—'}</td>
+                      <td className="px-5 py-3 text-[#7a6a52]">{loan.return_verified_date ?? loan.return_date ?? '—'}</td>
                       <td className="px-5 py-3">
-                        {loan.return_date ? (
+                        {(loan.return_verified_date || loan.return_date) ? (
                           <span className="px-2 py-1 rounded-full text-xs bg-green-100 text-green-700 font-semibold">Returned</span>
                         ) : overdue ? (
                           <span className="px-2 py-1 rounded-full text-xs bg-red-100 text-red-700 font-semibold">⚠️ Overdue {loan.overdue_days}d</span>

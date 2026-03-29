@@ -2,6 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { Book, Loan } from '../types';
 import { borrowerGetBooks, borrowerBorrow, borrowerReturnRequest, borrowerHistory, logoutApi } from '../api';
 import libraryIcon from '../assets/library-icon.png';
+import loanIcon from '../assets/loan-icon.png';
+import bookIcon from '../assets/book-icon.png';
 
 interface Props {
   username: string;
@@ -122,16 +124,21 @@ const BorrowerDashboard: React.FC<Props> = ({ username, memberId, onLogout }) =>
         {success && <div className="mb-4 px-4 py-3 bg-green-50 border border-green-300 text-green-700 rounded-lg text-sm flex items-center gap-2"><span>✅</span>{success}</div>}
 
         {/* ── Tabs ── */}
-        <div className="flex gap-2 mb-6 border-b-2 border-[#e2d9c4]">
-          {(['browse', 'history'] as const).map(t => (
-            <button key={t} onClick={() => setTab(t)}
-              className={`px-6 py-2 text-sm font-semibold transition-colors border-b-2 -mb-[2px] ${
-                tab === t ? 'border-yellow-600 text-[#1a1209]' : 'border-transparent text-[#7a6a52] hover:text-[#1a1209]'
-              }`} style={{fontFamily:'Playfair Display, serif'}}>
-              {t === 'browse' ? '📚 Browse Books' : '📋 My Borrowing History'}
-            </button>
-          ))}
-        </div>
+<div className="flex gap-2 mb-6 border-b-2 border-[#e2d9c4]">
+  {(['browse', 'history'] as const).map(t => (
+    <button key={t} onClick={() => setTab(t)}
+      className={`px-6 py-2 text-sm font-semibold transition-colors border-b-2 -mb-[2px] flex items-center gap-2 ${
+        tab === t ? 'border-yellow-600 text-[#1a1209]' : 'border-transparent text-[#7a6a52] hover:text-[#1a1209]'
+      }`} style={{fontFamily:'Playfair Display, serif'}}>
+      <img
+        src={t === 'browse' ? bookIcon : loanIcon}
+        alt={t}
+        className="w-5 h-5 object-contain"
+      />
+      {t === 'browse' ? 'Browse Books' : 'My Borrowing History'}
+    </button>
+  ))}
+</div>
 
         {/* ── Browse Books ── */}
         {tab === 'browse' && (

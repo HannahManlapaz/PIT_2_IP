@@ -147,3 +147,9 @@ export const superadminToggleStaff = (id: number) =>
   request<StaffUser>(`/superadmin/staff/${id}/toggle/`, { method: 'PATCH' });
 export const superadminDeleteStaff = (id: number) =>
   request<void>(`/superadmin/staff/${id}/delete/`, { method: 'DELETE' });
+export const superadminEditStaff = (id: number, data: {
+  first_name?: string;
+  last_name?: string;
+  email?: string;
+  password?: string;
+}) => request<StaffUser>(`/superadmin/staff/${id}/edit/`, { method: 'PATCH', body: JSON.stringify(data) });

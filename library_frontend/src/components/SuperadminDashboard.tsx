@@ -2,10 +2,14 @@ import React, { useEffect, useState } from 'react';
 import {
   superadminGetStats, superadminGetStaff,
   superadminCreateStaff, superadminToggleStaff,
-  superadminDeleteStaff, 
+  superadminDeleteStaff, superadminEditStaff,
 } from '../api';
 import libraryIcon from '../assets/library-icon.png';
 import { StaffUser, SuperadminStats } from '../types';
+import bookIcon   from '../assets/book-icon.png';
+import authorIcon from '../assets/author-icon.png';
+import memberIcon from '../assets/member-icon.png';
+import loanIcon   from '../assets/loan-icon.png';
 
 interface Props {
   username: string;
@@ -24,6 +28,8 @@ const SuperadminDashboard: React.FC<Props> = ({ username, onLogout }) => {
   const [form, setForm] = useState({
     username: '', password: '', email: '', first_name: '', last_name: ''
   });
+  const [editStaff, setEditStaff] = useState<StaffUser | null>(null);
+  const [editForm, setEditForm] = useState({ first_name: '', last_name: '', email: '', password: '' });
 
   const load = async () => {
     try {
@@ -71,18 +77,30 @@ const SuperadminDashboard: React.FC<Props> = ({ username, onLogout }) => {
     } catch { setError('Failed to delete staff.'); }
   };
 
+  const handleEdit = async () => {
+    if (!editStaff) return;
+    try {
+      setSaving(true); setError(''); setSuccess('');
+      await superadminEditStaff(editStaff.id, editForm);
+      setSuccess(`${editStaff.username} has been updated.`);
+      setEditStaff(null);
+      await load();
+    } catch { setError('Failed to update staff.'); }
+    finally { setSaving(false); }
+  };
+
   const handleLogout = async () => {
     try { await import('../api').then(api => api.logoutApi()); } catch {}
     onLogout();
   };
 
   const statCards = [
-    { label: 'Total Books',   value: stats?.total_books,   color: 'text-yellow-600' },
-    { label: 'Total Authors', value: stats?.total_authors, color: 'text-yellow-600' },
-    { label: 'Total Members', value: stats?.total_members, color: 'text-yellow-600' },
-    { label: 'Active Loans',  value: stats?.active_loans,  color: 'text-red-500'    },
-    { label: 'Total Loans',   value: stats?.total_loans,   color: 'text-yellow-600' },
-    { label: 'Total Staff',   value: stats?.total_staff,   color: 'text-yellow-600' },
+    { label: 'Total Books',   value: stats?.total_books,   color: 'text-yellow-600', icon: bookIcon   },
+    { label: 'Total Authors', value: stats?.total_authors, color: 'text-yellow-600', icon: authorIcon },
+    { label: 'Total Members', value: stats?.total_members, color: 'text-yellow-600', icon: memberIcon },
+    { label: 'Active Loans',  value: stats?.active_loans,  color: 'text-red-500',    icon: loanIcon   },
+    { label: 'Total Loans',   value: stats?.total_loans,   color: 'text-yellow-600', icon: loanIcon   },
+    { label: 'Total Staff',   value: stats?.total_staff,   color: 'text-yellow-600', icon: memberIcon },
   ];
 
   return (
@@ -118,8 +136,9 @@ const SuperadminDashboard: React.FC<Props> = ({ username, onLogout }) => {
         <div>
           <h2 style={{fontFamily:'Playfair Display, serif'}} className="text-xl font-semibold text-[#1a1209] mb-3">System Overview</h2>
           <div className="grid grid-cols-3 md:grid-cols-6 gap-4">
-            {statCards.map(({ label, value, color }) => (
+            {statCards.map(({ label, value, color, icon }) => (
               <div key={label} className="bg-white rounded-lg border border-[#cfc4aa] p-4 text-center shadow-sm">
+                <img src={icon} alt={label} className="w-10 h-10 object-contain mx-auto mb-2" />
                 {loading ? <div className="w-8 h-7 bg-[#ede5d0] rounded animate-pulse mx-auto mb-1" /> : <div className={`text-2xl font-bold ${color}`}>{value ?? 0}</div>}
                 <div className="text-xs text-[#7a6a52] italic mt-1">{label}</div>
               </div>
@@ -215,6 +234,10 @@ const SuperadminDashboard: React.FC<Props> = ({ username, onLogout }) => {
                       </td>
                       <td className="px-5 py-3">
                         <div className="flex gap-2">
+                          <button onClick={() => { setEditStaff(s); setEditForm({ first_name: s.first_name || '', last_name: s.last_name || '', email: s.email || '', password: '' }); }}
+                            className="px-3 py-1 text-xs border border-blue-300 text-blue-700 rounded hover:bg-blue-50 transition-colors">
+                            Edit
+                          </button>
                           <button onClick={() => handleToggle(s)}
                             className={`px-3 py-1 text-xs border rounded transition-colors ${
                               s.is_active
@@ -237,6 +260,43 @@ const SuperadminDashboard: React.FC<Props> = ({ username, onLogout }) => {
           </div>
         </div>
       </div>
+
+      {/* ── Edit Staff Modal ── */}
+      {editStaff && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl shadow-2xl p-8 max-w-md w-full mx-4">
+            <h3 style={{fontFamily:'Playfair Display, serif'}} className="text-lg font-semibold text-[#1a1209] mb-4">Edit Staff — {editStaff.username}</h3>
+            <div className="grid grid-cols-2 gap-4 mb-4">
+              <div>
+                <label className="block text-sm font-semibold text-[#3d2f1a] mb-1">First Name</label>
+                <input className="w-full px-3 py-2 border border-[#cfc4aa] rounded text-sm focus:outline-none focus:border-[#6b1d2a]"
+                  value={editForm.first_name} onChange={e => setEditForm({...editForm, first_name: e.target.value})} />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-[#3d2f1a] mb-1">Last Name</label>
+                <input className="w-full px-3 py-2 border border-[#cfc4aa] rounded text-sm focus:outline-none focus:border-[#6b1d2a]"
+                  value={editForm.last_name} onChange={e => setEditForm({...editForm, last_name: e.target.value})} />
+              </div>
+              <div className="col-span-2">
+                <label className="block text-sm font-semibold text-[#3d2f1a] mb-1">Email</label>
+                <input type="email" className="w-full px-3 py-2 border border-[#cfc4aa] rounded text-sm focus:outline-none focus:border-[#6b1d2a]"
+                  value={editForm.email} onChange={e => setEditForm({...editForm, email: e.target.value})} />
+              </div>
+              <div className="col-span-2">
+                <label className="block text-sm font-semibold text-[#3d2f1a] mb-1">New Password <span className="text-[#7a6a52] font-normal">(leave blank to keep current)</span></label>
+                <input type="password" className="w-full px-3 py-2 border border-[#cfc4aa] rounded text-sm focus:outline-none focus:border-[#6b1d2a]"
+                  value={editForm.password} onChange={e => setEditForm({...editForm, password: e.target.value})} placeholder="••••••••" />
+              </div>
+            </div>
+            <div className="flex gap-3 justify-end">
+              <button onClick={() => setEditStaff(null)} className="px-4 py-2 border border-[#cfc4aa] rounded text-[#3d2f1a] hover:bg-[#e2d9c4] transition-colors text-sm">Cancel</button>
+              <button onClick={handleEdit} disabled={saving} className="px-5 py-2 bg-[#6b1d2a] text-white rounded hover:bg-[#8c2f3f] transition-colors text-sm font-semibold disabled:opacity-60">
+                {saving ? 'Saving…' : 'Save Changes'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Delete Confirm Modal ── */}
       {confirmDelete && (

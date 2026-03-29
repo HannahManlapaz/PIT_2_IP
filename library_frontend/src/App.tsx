@@ -5,8 +5,7 @@ import BookTable from './components/BookTable';
 import AuthorTable from './components/AuthorTable';
 import MemberTable from './components/MemberTable';
 import LoanTable from './components/LoanTable';
-import LoginPage from './components/Loginpage';
-import AdminLoginPage from './components/AdminLoginPage';
+import LoginPage from './components/LoginPage';
 import RegisterPage from './components/RegisterPage';
 import BorrowerDashboard from './components/BorrowerDashboard';
 import SuperadminDashboard from './components/SuperadminDashboard';
@@ -184,14 +183,13 @@ const App: React.FC = () => {
     setToken(''); setUsername(''); setRole(''); setMemberId(null);
   };
 
-  // Not logged in
+  // Not logged in — single login page for all roles
   if (!token) {
     return (
       <Router>
         <Routes>
-          <Route path="/admin"    element={<AdminLoginPage onLogin={handleLogin} />} />
-          <Route path="/register" element={<RegisterPage   onLogin={handleLogin} />} />
-          <Route path="*"         element={<LoginPage      onLogin={handleLogin} />} />
+          <Route path="/register" element={<RegisterPage onLogin={handleLogin} />} />
+          <Route path="*"         element={<LoginPage onLogin={handleLogin} />} />
         </Routes>
       </Router>
     );

@@ -14,6 +14,7 @@ urlpatterns = [
     path('superadmin/staff/create/', views.superadmin_create_staff, name='superadmin-staff-create'),
     path('superadmin/staff/<int:user_id>/toggle/', views.superadmin_toggle_staff, name='superadmin-staff-toggle'),
     path('superadmin/staff/<int:user_id>/delete/', views.superadmin_delete_staff, name='superadmin-staff-delete'),
+    path('superadmin/staff/<int:user_id>/edit/', views.superadmin_edit_staff),
 
     # Borrower routes
     path('borrower/books/', views.borrower_books, name='borrower-books'),

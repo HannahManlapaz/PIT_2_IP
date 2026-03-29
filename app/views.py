@@ -109,6 +109,22 @@ def superadmin_toggle_staff(request, user_id):
     user.save()
     return Response(StaffSerializer(user).data)
 
+@api_view(['PATCH'])
+@permission_classes([IsAuthenticated])
+def superadmin_edit_staff(request, user_id):
+    if not request.user.is_superuser:
+        return Response({'error': 'Unauthorized.'}, status=403)
+    try:
+        user = User.objects.get(pk=user_id, is_staff=True, is_superuser=False)
+    except User.DoesNotExist:
+        return Response({'error': 'Staff not found.'}, status=404)
+    user.first_name = request.data.get('first_name', user.first_name)
+    user.last_name  = request.data.get('last_name',  user.last_name)
+    user.email      = request.data.get('email',      user.email)
+    if request.data.get('password'):
+        user.set_password(request.data['password'])
+    user.save()
+    return Response(StaffSerializer(user).data)
 
 @api_view(['DELETE'])
 @permission_classes([IsAuthenticated])

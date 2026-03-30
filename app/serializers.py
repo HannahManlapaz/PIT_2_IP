@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Author, Book, Member, Loan, Reservation
+from .models import Author, Book, Member, Loan
 from datetime import date
 from django.contrib.auth.models import User
 
@@ -20,9 +20,11 @@ class BookSerializer(serializers.ModelSerializer):
         return obj.author.name if obj.author else None
 
     def get_cover_image_url(self, obj):
-        request = self.context.get('request')
-        if obj.cover_image and request:
-            return request.build_absolute_uri(obj.cover_image.url)
+        if obj.cover_image:
+            url = obj.cover_image.url
+            # Add f_auto for correct format detection
+            url = url.replace('/upload/', '/upload/f_auto/')
+            return url
         return None
 
 class MemberSerializer(serializers.ModelSerializer):
@@ -31,17 +33,17 @@ class MemberSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 class LoanSerializer(serializers.ModelSerializer):
-    member_name      = serializers.SerializerMethodField()
-    book_title       = serializers.SerializerMethodField()
-    overdue_days     = serializers.SerializerMethodField()
+    member_name = serializers.SerializerMethodField()
+    book_title = serializers.SerializerMethodField()
+    overdue_days = serializers.SerializerMethodField()
     verified_by_name = serializers.SerializerMethodField()
 
     class Meta:
         model = Loan
         fields = [
-            'id', 'member', 'book', 'member_name', 'book_title',
+            'id', 'member', 'book', 'member_name', 'book_title', 
             'loan_date', 'due_date', 'return_date', 'return_requested_date',
-            'return_verified_date', 'return_status', 'verified_by',
+            'return_verified_date', 'return_status', 'verified_by', 
             'verified_by_name', 'overdue_days', 'notes'
         ]
         read_only_fields = ['return_verified_date', 'verified_by']
@@ -71,44 +73,6 @@ class LoanSerializer(serializers.ModelSerializer):
         return value
 
 
-class ReservationSerializer(serializers.ModelSerializer):
-    book_title      = serializers.SerializerMethodField()
-    book_cover_url  = serializers.SerializerMethodField()
-    member_name     = serializers.SerializerMethodField()
-    queue_position  = serializers.SerializerMethodField()
-
-    class Meta:
-        model = Reservation
-        fields = [
-            'id', 'member', 'book', 'book_title', 'book_cover_url',
-            'member_name', 'reserved_date', 'status', 'notified_date', 'queue_position'
-        ]
-        read_only_fields = ['reserved_date', 'status', 'notified_date', 'queue_position']
-
-    def get_book_title(self, obj):
-        return obj.book.title if obj.book else None
-
-    def get_book_cover_url(self, obj):
-        request = self.context.get('request')
-        if obj.book and obj.book.cover_image and request:
-            return request.build_absolute_uri(obj.book.cover_image.url)
-        return None
-
-    def get_member_name(self, obj):
-        return obj.member.name if obj.member else None
-
-    def get_queue_position(self, obj):
-        # Count how many waiting reservations are ahead of this one
-        if obj.status != 'waiting':
-            return None
-        position = Reservation.objects.filter(
-            book=obj.book,
-            status='waiting',
-            reserved_date__lt=obj.reserved_date
-        ).count() + 1
-        return position
-
-
 class ReturnRequestSerializer(serializers.Serializer):
     loan_id = serializers.IntegerField()
 
@@ -126,7 +90,7 @@ class ReturnRequestSerializer(serializers.Serializer):
 
 class ReturnVerificationSerializer(serializers.Serializer):
     loan_id = serializers.IntegerField()
-    notes   = serializers.CharField(required=False, allow_blank=True)
+    notes = serializers.CharField(required=False, allow_blank=True)
 
     def validate_loan_id(self, value):
         try:

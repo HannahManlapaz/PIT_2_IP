@@ -59,15 +59,24 @@ const BookTable: React.FC = () => {
   };
 
   const handleSave = async () => {
-    if (!form.title || !form.isbn || !form.author) { setError('Please fill in all required fields.'); return; }
+    if (!form.title || !form.isbn || !form.author) {
+        setError('Please fill in all required fields.');
+        return;
+    }
     try {
-      setSaving(true); setError('');
-      if (editing) await updateBook(editing.id, form);
-      else await createBook(form);
-      setShowForm(false); await load();
-    } catch { setError('Failed to save book.'); }
-    finally { setSaving(false); }
-  };
+        setSaving(true); setError('');
+        
+        const payload = { ...form, cover_image: imageFile ?? form.cover_image };
+        if (editing) await updateBook(editing.id, payload);
+        else await createBook(payload);
+        setShowForm(false);
+        await load();
+    } catch {
+        setError('Failed to save book.');
+    } finally {
+        setSaving(false);
+    }
+};
 
   const handleDelete = async () => {
     if (!confirmDelete) return;

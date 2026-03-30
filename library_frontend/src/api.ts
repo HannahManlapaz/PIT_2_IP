@@ -68,6 +68,7 @@ export const deleteAuthor = (id: number) =>
 
 // Books
 export const getBooks = () => request<Book[]>('/books/');
+
 export const createBook = (data: Omit<Book, 'id' | 'author_name' | 'cover_image_url'>) => {
   const fd = new FormData();
   fd.append('title', data.title);
@@ -75,9 +76,11 @@ export const createBook = (data: Omit<Book, 'id' | 'author_name' | 'cover_image_
   fd.append('publication_year', String(data.publication_year));
   fd.append('author', String(data.author));
   fd.append('available', String(data.available));
+  fd.append('description', (data as any).description ?? '');  // ✅ added
   if (data.cover_image instanceof File) fd.append('cover_image', data.cover_image);
   return request<Book>('/books/', { method: 'POST', body: fd });
 };
+
 export const updateBook = (id: number, data: Omit<Book, 'id' | 'author_name' | 'cover_image_url'>) => {
   const fd = new FormData();
   fd.append('title', data.title);
@@ -85,9 +88,11 @@ export const updateBook = (id: number, data: Omit<Book, 'id' | 'author_name' | '
   fd.append('publication_year', String(data.publication_year));
   fd.append('author', String(data.author));
   fd.append('available', String(data.available));
+  fd.append('description', (data as any).description ?? '');  // ✅ added
   if (data.cover_image instanceof File) fd.append('cover_image', data.cover_image);
   return request<Book>(`/books/${id}/`, { method: 'PUT', body: fd });
 };
+
 export const deleteBook = (id: number) =>
   request<void>(`/books/${id}/`, { method: 'DELETE' });
 
@@ -140,7 +145,7 @@ export const superadminCreateStaff = (data: {
   password: string;
   email?: string;
   first_name?: string;
-  last_name?: string
+  last_name?: string;
 }) =>
   request<StaffUser>('/superadmin/staff/create/', { method: 'POST', body: JSON.stringify(data) });
 export const superadminToggleStaff = (id: number) =>

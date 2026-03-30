@@ -11,9 +11,8 @@ interface Props {
   onLogout: () => void;
 }
 
-// ─────────────────────────────────────────────────────────────
-// BookCard — About + Borrow always at same position on every card
-// ─────────────────────────────────────────────────────────────
+const FEE_PER_DAY = 20; // ₱20 per overdue day
+
 const BookCard: React.FC<{
   book: Book;
   borrowing: number | null;
@@ -22,7 +21,6 @@ const BookCard: React.FC<{
   const [showDesc, setShowDesc] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
-  // Close when clicking outside
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
       if (ref.current && !ref.current.contains(e.target as Node)) {
@@ -65,10 +63,8 @@ const BookCard: React.FC<{
         <p className="text-xs text-[#7a6a52] italic mb-1 truncate">{book.author_name}</p>
         <p className="text-xs text-[#cfc4aa]">{book.publication_year}</p>
 
-        {/* ✅ mt-auto forces About + Borrow to always sit at the bottom equally */}
         <div className="mt-auto pt-3 flex flex-col gap-2">
-
-          {/* About button row */}
+          {/* About button */}
           <div className="flex justify-end relative">
             <button
               onClick={() => setShowDesc(prev => !prev)}
@@ -81,7 +77,6 @@ const BookCard: React.FC<{
               About {showDesc ? '▴' : '▾'}
             </button>
 
-            {/* Floating description — does not affect layout */}
             {showDesc && (
               <div style={{
                 position: 'absolute',
@@ -201,9 +196,15 @@ const BorrowerDashboard: React.FC<Props> = ({ username, memberId, onLogout }) =>
     onLogout();
   };
 
-  const isLoanOpen = (l: Loan) => !(l.return_verified_date || l.return_date);
+  const isLoanOpen  = (l: Loan) => !(l.return_verified_date || l.return_date);
   const activeLoans = history.filter(isLoanOpen);
   const isOverdue   = (loan: Loan) => isLoanOpen(loan) && (loan.overdue_days ?? 0) > 0;
+  const overdueFee  = (loan: Loan) => (loan.overdue_days ?? 0) * FEE_PER_DAY;
+
+  // ── Total outstanding fee across all overdue loans ──
+  const totalOutstandingFee = history
+    .filter(l => isOverdue(l))
+    .reduce((sum, l) => sum + overdueFee(l), 0);
 
   const filteredBooks = books.filter(b =>
     b.title.toLowerCase().includes(search.toLowerCase()) ||
@@ -234,7 +235,7 @@ const BorrowerDashboard: React.FC<Props> = ({ username, memberId, onLogout }) =>
       <div className="max-w-6xl mx-auto p-8">
 
         {/* Stats */}
-        <div className="grid grid-cols-3 gap-4 mb-8">
+        <div className="grid grid-cols-3 gap-4 mb-4">
           <div className="bg-white rounded-lg border border-[#cfc4aa] p-5 text-center shadow-sm">
             <div className="text-3xl font-bold text-yellow-600">{books.filter(b => b.available).length}</div>
             <div className="text-sm text-[#7a6a52] italic mt-1">Available Books</div>
@@ -250,6 +251,25 @@ const BorrowerDashboard: React.FC<Props> = ({ username, memberId, onLogout }) =>
             <div className="text-sm text-[#7a6a52] italic mt-1">Overdue</div>
           </div>
         </div>
+
+        {/* ── Overdue Fee Banner ── */}
+        {totalOutstandingFee > 0 && (
+          <div className="mb-6 px-5 py-4 bg-red-50 border border-red-300 rounded-lg flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <span className="text-2xl">⚠️</span>
+              <div>
+                <p className="text-red-700 font-semibold text-sm">You have outstanding overdue fees</p>
+                <p className="text-red-500 text-xs italic mt-0.5">
+                  Please settle your fees when returning books. Rate: ₱{FEE_PER_DAY}/day per book.
+                </p>
+              </div>
+            </div>
+            <div className="text-right">
+              <p className="text-2xl font-bold text-red-700">₱{totalOutstandingFee.toLocaleString()}</p>
+              <p className="text-xs text-red-500 italic">Total outstanding</p>
+            </div>
+          </div>
+        )}
 
         {/* Alerts */}
         {error   && <div className="mb-4 px-4 py-3 bg-red-50 border border-red-300 text-red-700 rounded-lg text-sm flex items-center gap-2"><span>⚠️</span>{error}</div>}
@@ -308,57 +328,120 @@ const BorrowerDashboard: React.FC<Props> = ({ username, memberId, onLogout }) =>
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="bg-[#ede5d0] text-[#3d2f1a] text-left border-b-2 border-yellow-600">
-                      {['Book', 'Loan Date', 'Due Date', 'Return Date', 'Status', 'Action'].map(h => (
-                        <th key={h} style={{ fontFamily: 'Playfair Display, serif' }} className="px-5 py-3 font-semibold text-xs tracking-wider uppercase">{h}</th>
+                      {['Book', 'Loan Date', 'Due Date', 'Return Date', 'Status', 'Overdue Fee', 'Action'].map(h => (
+                        <th key={h} style={{ fontFamily: 'Playfair Display, serif' }}
+                          className="px-5 py-3 font-semibold text-xs tracking-wider uppercase">{h}</th>
                       ))}
                     </tr>
                   </thead>
                   <tbody>
                     {history.map((loan, i) => {
-                      const overdue = isOverdue(loan);
+                      const overdue    = isOverdue(loan);
+                      const isRejected = loan.return_status === 'rejected';
+                      const fee        = overdueFee(loan);
+
                       return (
                         <tr key={loan.id} className={`border-t border-[#ede5d0] transition-colors ${
                           overdue ? 'bg-red-50 hover:bg-red-100' : i % 2 === 0 ? 'bg-white hover:bg-[#faf7f2]' : 'bg-[#fdf9f4] hover:bg-[#faf7f2]'
                         }`}>
+
+                          {/* Book */}
                           <td className="px-5 py-3 font-semibold text-[#1a1209]">{loan.book_title}</td>
+
+                          {/* Loan Date */}
                           <td className="px-5 py-3 text-[#7a6a52]">{loan.loan_date}</td>
+
+                          {/* Due Date */}
                           <td className="px-5 py-3">
-                            <span className={overdue ? 'text-red-600 font-semibold' : 'text-[#7a6a52]'}>{loan.due_date ?? '—'}</span>
+                            <span className={overdue ? 'text-red-600 font-semibold' : 'text-[#7a6a52]'}>
+                              {loan.due_date ?? '—'}
+                            </span>
                           </td>
+
+                          {/* Return Date */}
                           <td className="px-5 py-3 text-[#7a6a52]">
                             {loan.return_verified_date ?? loan.return_date ?? (
-                              loan.return_requested_date
-                                ? <em className="text-amber-700">Awaiting staff verification</em>
-                                : <em className="text-[#cfc4aa]">Not yet returned</em>
+                              isRejected ? (
+                                <em className="text-red-500">Return rejected</em>
+                              ) : loan.return_requested_date ? (
+                                <em className="text-amber-700">Awaiting staff verification</em>
+                              ) : (
+                                <em className="text-[#cfc4aa]">Not yet returned</em>
+                              )
                             )}
                           </td>
+
+                          {/* Status */}
                           <td className="px-5 py-3">
                             {loan.return_verified_date || loan.return_date ? (
-                              <span className="px-2 py-1 rounded-full text-xs bg-green-100 text-green-700 font-semibold">Returned</span>
+                              <span className="px-2 py-1 rounded-full text-xs bg-green-100 text-green-700 font-semibold">
+                                Returned
+                              </span>
+                            ) : isRejected ? (
+                              <div className="flex flex-col gap-1">
+                                <span className="px-2 py-1 rounded-full text-xs bg-red-100 text-red-700 font-semibold w-fit">
+                                  ✕ Return Rejected
+                                </span>
+                                {loan.notes && (
+                                  <p className="text-xs text-red-500 italic max-w-[180px]" title={loan.notes}>
+                                    "{loan.notes}"
+                                  </p>
+                                )}
+                              </div>
                             ) : loan.return_requested_date ? (
-                              <span className="px-2 py-1 rounded-full text-xs bg-amber-100 text-amber-800 font-semibold">Pending verification</span>
+                              <span className="px-2 py-1 rounded-full text-xs bg-amber-100 text-amber-800 font-semibold">
+                                Pending verification
+                              </span>
                             ) : overdue ? (
-                              <span className="px-2 py-1 rounded-full text-xs bg-red-100 text-red-700 font-semibold">⚠️ Overdue {loan.overdue_days}d</span>
+                              <span className="px-2 py-1 rounded-full text-xs bg-red-100 text-red-700 font-semibold">
+                                ⚠️ Overdue {loan.overdue_days}d
+                              </span>
                             ) : (
-                              <span className="px-2 py-1 rounded-full text-xs bg-yellow-100 text-yellow-700 font-semibold">Active</span>
+                              <span className="px-2 py-1 rounded-full text-xs bg-yellow-100 text-yellow-700 font-semibold">
+                                Active
+                              </span>
                             )}
                           </td>
+
+                          {/* ── Overdue Fee column ── */}
+                          <td className="px-5 py-3">
+                            {overdue && fee > 0 ? (
+                              <div className="flex flex-col">
+                                <span className="text-red-600 font-bold text-sm">₱{fee.toLocaleString()}</span>
+                                <span className="text-red-400 text-xs italic">{loan.overdue_days}d × ₱{FEE_PER_DAY}</span>
+                              </div>
+                            ) : loan.return_verified_date || loan.return_date ? (
+                              <span className="text-green-600 text-xs font-semibold">Cleared</span>
+                            ) : (
+                              <span className="text-[#cfc4aa] text-xs">—</span>
+                            )}
+                          </td>
+
+                          {/* Action */}
                           <td className="px-5 py-3">
                             {!loan.return_verified_date && !loan.return_date && (
-                              <button
-                                onClick={() => handleReturn(loan)}
-                                disabled={returning === loan.id || !!loan.return_requested_date}
-                                className="px-3 py-1 text-xs border border-blue-300 text-blue-700 rounded hover:bg-blue-50 transition-colors disabled:opacity-60"
-                                title={loan.return_requested_date ? 'Return already requested' : undefined}
-                              >
-                                {loan.return_requested_date
-                                  ? 'Pending…'
-                                  : returning === loan.id
-                                    ? 'Submitting…'
-                                    : '↩ Request return'}
-                              </button>
+                              isRejected ? (
+                                <button
+                                  onClick={() => handleReturn(loan)}
+                                  disabled={returning === loan.id}
+                                  className="px-3 py-1 text-xs border border-red-300 text-red-700 rounded hover:bg-red-50 transition-colors disabled:opacity-60"
+                                >
+                                  {returning === loan.id ? 'Submitting…' : '↩ Re-request Return'}
+                                </button>
+                              ) : !loan.return_requested_date ? (
+                                <button
+                                  onClick={() => handleReturn(loan)}
+                                  disabled={returning === loan.id}
+                                  className="px-3 py-1 text-xs border border-blue-300 text-blue-700 rounded hover:bg-blue-50 transition-colors disabled:opacity-60"
+                                >
+                                  {returning === loan.id ? 'Submitting…' : '↩ Request Return'}
+                                </button>
+                              ) : (
+                                <span className="text-xs text-amber-700 italic">Pending…</span>
+                              )
                             )}
                           </td>
+
                         </tr>
                       );
                     })}

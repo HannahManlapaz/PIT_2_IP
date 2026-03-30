@@ -16,6 +16,7 @@ export interface Book {
   available: boolean;
   cover_image?: File | string | null;
   cover_image_url?: string | null;
+  description?: string;
 }
 
 export interface Member {
@@ -38,7 +39,7 @@ export interface Loan {
   return_date: string | null;
   return_requested_date?: string | null;
   return_verified_date?: string | null;
-  return_status?: 'pending' | 'verified' | 'disputed';
+  return_status?: 'none' | 'pending' | 'verified' | 'rejected' | 'disputed';
   verified_by?: number | null;
   verified_by_name?: string | null;
   notes?: string | null;

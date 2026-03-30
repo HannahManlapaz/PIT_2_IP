@@ -1,5 +1,5 @@
 from django.db import models
-from datetime import timedelta
+from datetime import timedelta, date
 from django.contrib.auth.models import User
 
 class Author(models.Model):
@@ -17,11 +17,11 @@ class Book(models.Model):
     author = models.ForeignKey(Author, on_delete=models.CASCADE)
     available = models.BooleanField(default=True)
     cover_image = models.ImageField(upload_to='book_covers/', null=True, blank=True)
-    description    = models.TextField(blank=True, null=True)
-    
+    description = models.TextField(blank=True, null=True)
+
     def __str__(self):
-            return self.title
-    
+        return self.title
+
 class Member(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, null=True, blank=True)
     name = models.CharField(max_length=100)
@@ -35,46 +35,44 @@ class Member(models.Model):
 
 class Loan(models.Model):
     RETURN_STATUS_CHOICES = [
+        ('none', 'No Request'),         
         ('pending', 'Pending Return'),
         ('verified', 'Returned & Verified'),
+        ('rejected', 'Return Rejected'),
         ('disputed', 'Disputed'),
     ]
-    
+
     member = models.ForeignKey(Member, on_delete=models.CASCADE)
     book = models.ForeignKey(Book, on_delete=models.CASCADE)
     loan_date = models.DateField()
     due_date = models.DateField(null=True, blank=True)
     return_date = models.DateField(null=True, blank=True)
-    return_requested_date = models.DateField(null=True, blank=True)  # When borrower requests return
-    return_verified_date = models.DateField(null=True, blank=True)   # When admin verifies return
+    return_requested_date = models.DateField(null=True, blank=True)
+    return_verified_date = models.DateField(null=True, blank=True)
     return_status = models.CharField(
-        max_length=20, 
-        choices=RETURN_STATUS_CHOICES, 
-        default='pending'
+        max_length=20,
+        choices=RETURN_STATUS_CHOICES,
+        default='none'                  
     )
     verified_by = models.ForeignKey(
-        User, 
-        on_delete=models.SET_NULL, 
-        null=True, 
-        blank=True,
+        User,
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
         related_name='verified_returns'
     )
-    notes = models.TextField(blank=True, null=True)  # For admin notes
+    notes = models.TextField(blank=True, null=True)
 
     def save(self, *args, **kwargs):
-        if self.loan_date:
+        # ✅ Only auto-set due_date on first creation, not on edits
+        if self.loan_date and not self.pk:
             if isinstance(self.loan_date, str):
                 from datetime import datetime
                 self.loan_date = datetime.strptime(self.loan_date, '%Y-%m-%d').date()
             self.due_date = self.loan_date + timedelta(days=14)
-        
-        # Book is unavailable while on loan; becomes available again when return is verified
+
         if self.book_id:
             book = Book.objects.get(pk=self.book_id)
-            if self.return_verified_date:
-                book.available = True
-            else:
-                book.available = False
+            book.available = bool(self.return_verified_date)
             book.save(update_fields=['available'])
 
         super().save(*args, **kwargs)
@@ -86,6 +84,14 @@ class Loan(models.Model):
             book.save()
         super().delete(*args, **kwargs)
 
+    @property
+    def overdue_days(self):
+        """Days past due_date. Only counts if book not yet returned."""
+        if self.return_verified_date or self.return_date:
+            return 0
+        if self.due_date and date.today() > self.due_date:
+            return (date.today() - self.due_date).days  # ✅ from due_date, not loan_date
+        return 0
+
     def __str__(self):
         return f"{self.member.name} borrowed {self.book.title} - Status: {self.get_return_status_display()}"
-

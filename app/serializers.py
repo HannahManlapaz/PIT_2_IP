@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Author, Book, Member, Loan
+from .models import Author, Book, Member, Loan, Reservation
 from datetime import date
 from django.contrib.auth.models import User
 
@@ -22,7 +22,6 @@ class BookSerializer(serializers.ModelSerializer):
     def get_cover_image_url(self, obj):
         if obj.cover_image:
             url = obj.cover_image.url
-            # Add f_auto for correct format detection
             url = url.replace('/upload/', '/upload/f_auto/')
             return url
         return None
@@ -71,6 +70,25 @@ class LoanSerializer(serializers.ModelSerializer):
         if not value.available and (instance is None or instance.book != value):
             raise serializers.ValidationError("This book is currently on loan and cannot be borrowed.")
         return value
+
+
+# ✅ NEW - Reservation Serializer
+class ReservationSerializer(serializers.ModelSerializer):
+    book_title  = serializers.SerializerMethodField()
+    member_name = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Reservation
+        fields = [
+            'id', 'member', 'book', 'book_title', 'member_name',
+            'reserved_date', 'status', 'notified_date', 'queue_position'
+        ]
+
+    def get_book_title(self, obj):
+        return obj.book.title if obj.book else None
+
+    def get_member_name(self, obj):
+        return obj.member.name if obj.member else None
 
 
 class ReturnRequestSerializer(serializers.Serializer):
@@ -166,3 +184,7 @@ class CreateStaffSerializer(serializers.Serializer):
             is_staff=True,
         )
         return user
+
+
+
+        

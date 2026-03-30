@@ -16,6 +16,7 @@ export interface Book {
   available: boolean;
   cover_image?: File | string | null;
   cover_image_url?: string | null;
+  description?: string;
 }
 
 export interface Member {

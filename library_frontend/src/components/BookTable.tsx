@@ -6,6 +6,7 @@ import Modal from './Modal';
 const emptyBook = (): Omit<Book, 'id' | 'author_name' | 'cover_image_url'> => ({
   title: '', isbn: '', publication_year: new Date().getFullYear(),
   author: 0, available: true, cover_image: null,
+  description: '',  // description field default
 });
 
 const BookTable: React.FC = () => {
@@ -39,8 +40,11 @@ const BookTable: React.FC = () => {
   };
 
   const openEdit = (book: Book) => {
-    setForm({ title: book.title, isbn: book.isbn, publication_year: book.publication_year,
-      author: book.author, available: book.available, cover_image: book.cover_image ?? null });
+    setForm({
+      title: book.title, isbn: book.isbn, publication_year: book.publication_year,
+      author: book.author, available: book.available, cover_image: book.cover_image ?? null,
+      description: (book as any).description ?? '',  // load existing description
+    });
     setImagePreview(book.cover_image_url ?? null);
     setImageFile(null);
     setEditing(book); setError(''); setShowForm(true);
@@ -141,7 +145,6 @@ const BookTable: React.FC = () => {
                     <span className="text-xs text-[#cfc4aa] italic px-2 text-center">No cover</span>
                   </div>
                 )}
-                {/* Status badge */}
                 <div className={`absolute top-2 right-2 px-2 py-0.5 rounded-full text-xs font-semibold ${
                   book.available
                     ? 'bg-green-100 text-green-700 border border-green-300'
@@ -214,11 +217,14 @@ const BookTable: React.FC = () => {
             </div>
           </div>
 
+          {/* Title */}
           <div className="mb-4">
             <label style={{fontFamily:'Playfair Display, serif'}} className="block text-sm font-semibold text-[#3d2f1a] mb-1">Title *</label>
             <input className="w-full px-3 py-2 border border-[#cfc4aa] rounded bg-white focus:outline-none focus:border-[#6b1d2a] text-sm"
               value={form.title} onChange={e => setForm({...form, title: e.target.value})} placeholder="Book title" />
           </div>
+
+          {/* ISBN + Year */}
           <div className="grid grid-cols-2 gap-4 mb-4">
             <div>
               <label style={{fontFamily:'Playfair Display, serif'}} className="block text-sm font-semibold text-[#3d2f1a] mb-1">ISBN *</label>
@@ -231,6 +237,8 @@ const BookTable: React.FC = () => {
                 value={form.publication_year} onChange={e => setForm({...form, publication_year: parseInt(e.target.value)})} />
             </div>
           </div>
+
+          {/* Author */}
           <div className="mb-4">
             <label style={{fontFamily:'Playfair Display, serif'}} className="block text-sm font-semibold text-[#3d2f1a] mb-1">Author *</label>
             <select className="w-full px-3 py-2 border border-[#cfc4aa] rounded bg-white focus:outline-none focus:border-[#6b1d2a] text-sm"
@@ -239,6 +247,25 @@ const BookTable: React.FC = () => {
               {authors.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
             </select>
           </div>
+
+          {/* ✅ Description field — staff can add/edit book description here */}
+          <div className="mb-4">
+            <label style={{fontFamily:'Playfair Display, serif'}} className="block text-sm font-semibold text-[#3d2f1a] mb-1">
+              Description
+            </label>
+            <textarea
+              className="w-full px-3 py-2 border border-[#cfc4aa] rounded bg-white focus:outline-none focus:border-[#6b1d2a] text-sm resize-none"
+              rows={4}
+              placeholder="Write a short description about this book…"
+              value={(form as any).description ?? ''}
+              onChange={e => setForm({...form, description: e.target.value} as any)}
+            />
+            <p className="text-xs text-[#cfc4aa] mt-1 italic">
+              This will show when borrowers click the About button.
+            </p>
+          </div>
+
+          {/* Available checkbox */}
           <label className="flex items-center gap-2 cursor-pointer text-sm text-[#3d2f1a]">
             <input type="checkbox" checked={form.available} onChange={e => setForm({...form, available: e.target.checked})} className="accent-[#6b1d2a] w-4 h-4" />
             Available for borrowing

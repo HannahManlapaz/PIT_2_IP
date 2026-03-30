@@ -38,7 +38,7 @@ export interface Loan {
   return_date: string | null;
   return_requested_date?: string | null;
   return_verified_date?: string | null;
-  return_status?: 'pending' | 'verified' | 'disputed';
+  return_status?: 'none' | 'pending' | 'verified' | 'rejected' | 'disputed';
   verified_by?: number | null;
   verified_by_name?: string | null;
   notes?: string | null;

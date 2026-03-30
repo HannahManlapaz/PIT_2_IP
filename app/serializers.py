@@ -45,7 +45,7 @@ class LoanSerializer(serializers.ModelSerializer):
             'return_verified_date', 'return_status', 'verified_by', 
             'verified_by_name', 'overdue_days', 'notes'
         ]
-        read_only_fields = ['due_date', 'return_verified_date', 'verified_by']
+        read_only_fields = ['return_verified_date', 'verified_by']
 
     def get_member_name(self, obj):
         return obj.member.name if obj.member else None

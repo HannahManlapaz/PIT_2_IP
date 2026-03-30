@@ -97,8 +97,8 @@ class Loan(models.Model):
 
 class Reservation(models.Model):
     STATUS_CHOICES = [
-        ('waiting', 'Waiting'),       # in queue, book still on loan
-        ('ready', 'Ready to Borrow'), # book returned, it's their turn
+        ('waiting', 'Waiting'),       
+        ('ready', 'Ready to Borrow'), 
         ('cancelled', 'Cancelled'),   # borrower cancelled
         ('expired', 'Expired'),       # didn't borrow within 24hrs
         ('fulfilled', 'Fulfilled'),   # they borrowed the book
@@ -117,3 +117,4 @@ class Reservation(models.Model):
 
     def __str__(self):
         return f"{self.member.name} reserved {self.book.title} - {self.get_status_display()}"
+        

@@ -46,6 +46,20 @@ export interface Loan {
   overdue_days?: number;
 }
 
+// ── New: Reservation ──
+export interface Reservation {
+  id: number;
+  member: number;
+  book: number;
+  book_title?: string;
+  book_cover_url?: string | null;
+  member_name?: string;
+  reserved_date: string;
+  status: 'waiting' | 'ready' | 'cancelled' | 'expired' | 'fulfilled';
+  notified_date?: string | null;
+  queue_position?: number | null;
+}
+
 export interface AuthUser {
   token?: string;
   username?: string;

@@ -11,7 +11,6 @@ class AuthorSerializer(serializers.ModelSerializer):
 class BookSerializer(serializers.ModelSerializer):
     author_name     = serializers.SerializerMethodField()
     cover_image_url = serializers.SerializerMethodField()
-    
 
     class Meta:
         model = Book
@@ -21,9 +20,11 @@ class BookSerializer(serializers.ModelSerializer):
         return obj.author.name if obj.author else None
 
     def get_cover_image_url(self, obj):
-        request = self.context.get('request')
-        if obj.cover_image and request:
-            return request.build_absolute_uri(obj.cover_image.url)
+        if obj.cover_image:
+            url = obj.cover_image.url
+            # Add f_auto for correct format detection
+            url = url.replace('/upload/', '/upload/f_auto/')
+            return url
         return None
 
 class MemberSerializer(serializers.ModelSerializer):
@@ -59,7 +60,7 @@ class LoanSerializer(serializers.ModelSerializer):
         today = date.today()
         delta = (today - obj.due_date).days
         return max(0, delta)
-    
+
     def get_verified_by_name(self, obj):
         if obj.verified_by:
             return obj.verified_by.username
@@ -67,7 +68,6 @@ class LoanSerializer(serializers.ModelSerializer):
 
     def validate_book(self, value):
         instance = self.instance
-        # Allow borrowing if book is available OR if it's the same book being returned
         if not value.available and (instance is None or instance.book != value):
             raise serializers.ValidationError("This book is currently on loan and cannot be borrowed.")
         return value
@@ -75,7 +75,7 @@ class LoanSerializer(serializers.ModelSerializer):
 
 class ReturnRequestSerializer(serializers.Serializer):
     loan_id = serializers.IntegerField()
-    
+
     def validate_loan_id(self, value):
         try:
             loan = Loan.objects.get(pk=value)
@@ -91,7 +91,7 @@ class ReturnRequestSerializer(serializers.Serializer):
 class ReturnVerificationSerializer(serializers.Serializer):
     loan_id = serializers.IntegerField()
     notes = serializers.CharField(required=False, allow_blank=True)
-    
+
     def validate_loan_id(self, value):
         try:
             loan = Loan.objects.get(pk=value)
@@ -100,6 +100,7 @@ class ReturnVerificationSerializer(serializers.Serializer):
         except Loan.DoesNotExist:
             raise serializers.ValidationError("Loan not found.")
         return value
+
 
 class RegisterSerializer(serializers.Serializer):
     username       = serializers.CharField()
@@ -136,10 +137,12 @@ class RegisterSerializer(serializers.Serializer):
         )
         return member
 
+
 class StaffSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ['id', 'username', 'email', 'first_name', 'last_name', 'is_active', 'date_joined']
+
 
 class CreateStaffSerializer(serializers.Serializer):
     username   = serializers.CharField()

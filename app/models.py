@@ -90,7 +90,7 @@ class Loan(models.Model):
         if self.return_verified_date or self.return_date:
             return 0
         if self.due_date and date.today() > self.due_date:
-            return (date.today() - self.due_date).days  # ✅ from due_date, not loan_date
+            return (date.today() - self.due_date).days  
         return 0
 
     def __str__(self):

@@ -68,6 +68,8 @@ export const deleteAuthor = (id: number) =>
 
 // Books
 export const getBooks = () => request<Book[]>('/books/');
+
+// ✅ FIXED: added description field
 export const createBook = (data: Omit<Book, 'id' | 'author_name' | 'cover_image_url'>) => {
   const fd = new FormData();
   fd.append('title', data.title);
@@ -75,9 +77,12 @@ export const createBook = (data: Omit<Book, 'id' | 'author_name' | 'cover_image_
   fd.append('publication_year', String(data.publication_year));
   fd.append('author', String(data.author));
   fd.append('available', String(data.available));
+  fd.append('description', (data as any).description ?? '');
   if (data.cover_image instanceof File) fd.append('cover_image', data.cover_image);
   return request<Book>('/books/', { method: 'POST', body: fd });
 };
+
+// ✅ FIXED: PATCH instead of PUT so existing cover_image is preserved when no new file is selected
 export const updateBook = (id: number, data: Omit<Book, 'id' | 'author_name' | 'cover_image_url'>) => {
   const fd = new FormData();
   fd.append('title', data.title);
@@ -85,9 +90,11 @@ export const updateBook = (id: number, data: Omit<Book, 'id' | 'author_name' | '
   fd.append('publication_year', String(data.publication_year));
   fd.append('author', String(data.author));
   fd.append('available', String(data.available));
+  fd.append('description', (data as any).description ?? '');
   if (data.cover_image instanceof File) fd.append('cover_image', data.cover_image);
-  return request<Book>(`/books/${id}/`, { method: 'PUT', body: fd });
+  return request<Book>(`/books/${id}/`, { method: 'PATCH', body: fd }); // ← PATCH not PUT
 };
+
 export const deleteBook = (id: number) =>
   request<void>(`/books/${id}/`, { method: 'DELETE' });
 

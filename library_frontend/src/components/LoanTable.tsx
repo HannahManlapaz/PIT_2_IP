@@ -484,7 +484,7 @@ const LoanTable: React.FC = () => {
             )}
           </div>
 
-          {/* ✅ Due Date — only shown when editing, allows manual override */}
+          {/* Due Date — only shown when editing, allows manual override */}
           {editing && (
             <div className="mb-4">
               <label style={{ fontFamily: 'Playfair Display, serif' }}

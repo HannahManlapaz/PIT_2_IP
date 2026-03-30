@@ -1,5 +1,5 @@
 // src/api.ts
-import { Author, Book, Member, Loan, AuthUser, StaffUser, SuperadminStats, AdminStats, PendingReturn } from './types';
+import { Author, Book, Member, Loan, AuthUser, StaffUser, SuperadminStats, AdminStats, PendingReturn, Reservation } from './types';
 
 const BASE_URL = 'http://127.0.0.1:8000/api';
 
@@ -69,7 +69,6 @@ export const deleteAuthor = (id: number) =>
 // Books
 export const getBooks = () => request<Book[]>('/books/');
 
-// ✅ FIXED: added description field
 export const createBook = (data: Omit<Book, 'id' | 'author_name' | 'cover_image_url'>) => {
   const fd = new FormData();
   fd.append('title', data.title);
@@ -82,7 +81,6 @@ export const createBook = (data: Omit<Book, 'id' | 'author_name' | 'cover_image_
   return request<Book>('/books/', { method: 'POST', body: fd });
 };
 
-// ✅ FIXED: PATCH instead of PUT so existing cover_image is preserved when no new file is selected
 export const updateBook = (id: number, data: Omit<Book, 'id' | 'author_name' | 'cover_image_url'>) => {
   const fd = new FormData();
   fd.append('title', data.title);
@@ -92,7 +90,7 @@ export const updateBook = (id: number, data: Omit<Book, 'id' | 'author_name' | '
   fd.append('available', String(data.available));
   fd.append('description', (data as any).description ?? '');
   if (data.cover_image instanceof File) fd.append('cover_image', data.cover_image);
-  return request<Book>(`/books/${id}/`, { method: 'PATCH', body: fd }); // ← PATCH not PUT
+  return request<Book>(`/books/${id}/`, { method: 'PATCH', body: fd });
 };
 
 export const deleteBook = (id: number) =>
@@ -124,6 +122,14 @@ export const borrowerReturnRequest = (loanId: number) =>
   request<{ message: string; loan: Loan }>(`/borrower/return-request/${loanId}/`, { method: 'POST' });
 export const borrowerHistory = () => request<Loan[]>('/borrower/history/');
 export const borrowerPendingReturns = () => request<Loan[]>('/borrower/pending-returns/');
+
+// ✅ Reservation routes (NEW)
+export const borrowerReserve = (book_id: number) =>
+  request<Reservation>('/borrower/reserve/', { method: 'POST', body: JSON.stringify({ book_id }) });
+export const borrowerMyReservations = () =>
+  request<Reservation[]>('/borrower/my-reservations/');
+export const borrowerCancelReservation = (reservationId: number) =>
+  request<{ message: string }>(`/borrower/cancel-reservation/${reservationId}/`, { method: 'POST' });
 
 // Admin routes for return verification
 export const getPendingReturns = () => request<PendingReturn[]>('/admin/pending-returns/');

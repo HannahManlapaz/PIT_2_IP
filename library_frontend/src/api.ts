@@ -1,5 +1,5 @@
 // src/api.ts
-import { Author, Book, Member, Loan, AuthUser, StaffUser, SuperadminStats, AdminStats, PendingReturn } from './types';
+import { Author, Book, Member, Loan, AuthUser, StaffUser, SuperadminStats, AdminStats, PendingReturn, Reservation } from './types';
 
 const BASE_URL = 'http://127.0.0.1:8000/api';
 
@@ -76,7 +76,7 @@ export const createBook = (data: Omit<Book, 'id' | 'author_name' | 'cover_image_
   fd.append('publication_year', String(data.publication_year));
   fd.append('author', String(data.author));
   fd.append('available', String(data.available));
-  fd.append('description', (data as any).description ?? '');  // ✅ added
+  fd.append('description', (data as any).description ?? '');
   if (data.cover_image instanceof File) fd.append('cover_image', data.cover_image);
   return request<Book>('/books/', { method: 'POST', body: fd });
 };
@@ -88,7 +88,7 @@ export const updateBook = (id: number, data: Omit<Book, 'id' | 'author_name' | '
   fd.append('publication_year', String(data.publication_year));
   fd.append('author', String(data.author));
   fd.append('available', String(data.available));
-  fd.append('description', (data as any).description ?? '');  // ✅ added
+  fd.append('description', (data as any).description ?? '');
   if (data.cover_image instanceof File) fd.append('cover_image', data.cover_image);
   return request<Book>(`/books/${id}/`, { method: 'PUT', body: fd });
 };
@@ -115,13 +115,23 @@ export const deleteLoan = (id: number) =>
   request<void>(`/loans/${id}/`, { method: 'DELETE' });
 
 // Borrower routes
-export const borrowerGetBooks = () => request<Book[]>('/borrower/books/');
-export const borrowerBorrow = (book_id: number) =>
+export const borrowerGetBooks    = () => request<Book[]>('/borrower/books/');
+export const borrowerBorrow      = (book_id: number) =>
   request<Loan>('/borrower/borrow/', { method: 'POST', body: JSON.stringify({ book_id }) });
 export const borrowerReturnRequest = (loanId: number) =>
   request<{ message: string; loan: Loan }>(`/borrower/return-request/${loanId}/`, { method: 'POST' });
-export const borrowerHistory = () => request<Loan[]>('/borrower/history/');
+export const borrowerHistory       = () => request<Loan[]>('/borrower/history/');
 export const borrowerPendingReturns = () => request<Loan[]>('/borrower/pending-returns/');
+
+// ── Reservation routes ──
+export const borrowerReserve = (book_id: number) =>
+  request<Reservation>('/borrower/reserve/', { method: 'POST', body: JSON.stringify({ book_id }) });
+
+export const borrowerMyReservations = () =>
+  request<Reservation[]>('/borrower/reservations/');
+
+export const borrowerCancelReservation = (reservationId: number) =>
+  request<{ message: string }>(`/borrower/reservations/${reservationId}/cancel/`, { method: 'POST' });
 
 // Admin routes for return verification
 export const getPendingReturns = () => request<PendingReturn[]>('/admin/pending-returns/');
@@ -138,14 +148,11 @@ export const rejectReturn = (loanId: number, reason: string) =>
 export const getAdminStats = () => request<AdminStats>('/admin/stats/');
 
 // Superadmin routes
-export const superadminGetStats = () => request<SuperadminStats>('/superadmin/stats/');
-export const superadminGetStaff = () => request<StaffUser[]>('/superadmin/staff/');
+export const superadminGetStats  = () => request<SuperadminStats>('/superadmin/stats/');
+export const superadminGetStaff  = () => request<StaffUser[]>('/superadmin/staff/');
 export const superadminCreateStaff = (data: {
-  username: string;
-  password: string;
-  email?: string;
-  first_name?: string;
-  last_name?: string;
+  username: string; password: string; email?: string;
+  first_name?: string; last_name?: string;
 }) =>
   request<StaffUser>('/superadmin/staff/create/', { method: 'POST', body: JSON.stringify(data) });
 export const superadminToggleStaff = (id: number) =>
@@ -153,8 +160,5 @@ export const superadminToggleStaff = (id: number) =>
 export const superadminDeleteStaff = (id: number) =>
   request<void>(`/superadmin/staff/${id}/delete/`, { method: 'DELETE' });
 export const superadminEditStaff = (id: number, data: {
-  first_name?: string;
-  last_name?: string;
-  email?: string;
-  password?: string;
+  first_name?: string; last_name?: string; email?: string; password?: string;
 }) => request<StaffUser>(`/superadmin/staff/${id}/edit/`, { method: 'PATCH', body: JSON.stringify(data) });

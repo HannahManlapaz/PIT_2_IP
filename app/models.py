@@ -35,7 +35,7 @@ class Member(models.Model):
 
 class Loan(models.Model):
     RETURN_STATUS_CHOICES = [
-        ('none', 'No Request'),         
+        ('none', 'No Request'),
         ('pending', 'Pending Return'),
         ('verified', 'Returned & Verified'),
         ('rejected', 'Return Rejected'),
@@ -52,7 +52,7 @@ class Loan(models.Model):
     return_status = models.CharField(
         max_length=20,
         choices=RETURN_STATUS_CHOICES,
-        default='none'                  
+        default='none'
     )
     verified_by = models.ForeignKey(
         User,
@@ -63,7 +63,6 @@ class Loan(models.Model):
     notes = models.TextField(blank=True, null=True)
 
     def save(self, *args, **kwargs):
-        # ✅ Only auto-set due_date on first creation, not on edits
         if self.loan_date and not self.pk:
             if isinstance(self.loan_date, str):
                 from datetime import datetime
@@ -86,12 +85,35 @@ class Loan(models.Model):
 
     @property
     def overdue_days(self):
-        """Days past due_date. Only counts if book not yet returned."""
         if self.return_verified_date or self.return_date:
             return 0
         if self.due_date and date.today() > self.due_date:
-            return (date.today() - self.due_date).days  # ✅ from due_date, not loan_date
+            return (date.today() - self.due_date).days
         return 0
 
     def __str__(self):
         return f"{self.member.name} borrowed {self.book.title} - Status: {self.get_return_status_display()}"
+
+
+class Reservation(models.Model):
+    STATUS_CHOICES = [
+        ('waiting', 'Waiting'),       # in queue, book still on loan
+        ('ready', 'Ready to Borrow'), # book returned, it's their turn
+        ('cancelled', 'Cancelled'),   # borrower cancelled
+        ('expired', 'Expired'),       # didn't borrow within 24hrs
+        ('fulfilled', 'Fulfilled'),   # they borrowed the book
+    ]
+
+    member = models.ForeignKey(Member, on_delete=models.CASCADE, related_name='reservations')
+    book = models.ForeignKey(Book, on_delete=models.CASCADE, related_name='reservations')
+    reserved_date = models.DateField(auto_now_add=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='waiting')
+    notified_date = models.DateField(null=True, blank=True)  # when they were told it's ready
+    queue_position = models.PositiveIntegerField(default=1)
+
+    class Meta:
+        unique_together = ('member', 'book', 'status')  # can't reserve same book twice while waiting/ready
+        ordering = ['reserved_date']
+
+    def __str__(self):
+        return f"{self.member.name} reserved {self.book.title} - {self.get_status_display()}"

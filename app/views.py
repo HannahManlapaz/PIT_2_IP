@@ -1,9 +1,9 @@
 from django.shortcuts import render
-from .models import Author, Book, Member, Loan
+from .models import Author, Book, Member, Loan, Reservation
 from .serializers import (
     AuthorSerializer, BookSerializer, MemberSerializer,
     LoanSerializer, RegisterSerializer, StaffSerializer, CreateStaffSerializer,
-    ReturnRequestSerializer, ReturnVerificationSerializer
+    ReturnRequestSerializer, ReturnVerificationSerializer, ReservationSerializer
 )
 from rest_framework.generics import ListCreateAPIView, RetrieveUpdateDestroyAPIView
 from rest_framework.authtoken.models import Token
@@ -187,6 +187,12 @@ def borrower_borrow(request):
         return Response({'error': 'This book is currently on loan.'}, status=400)
 
     loan = Loan.objects.create(member=member, book=book, loan_date=date.today())
+
+    # If this borrower had a 'ready' reservation for this book, mark it fulfilled
+    Reservation.objects.filter(
+        member=member, book=book, status='ready'
+    ).update(status='fulfilled')
+
     return Response(LoanSerializer(loan).data, status=201)
 
 
@@ -206,14 +212,12 @@ def borrower_return_request(request, loan_id):
     if loan.return_verified_date:
         return Response({'error': 'Book already returned.'}, status=400)
 
-    # Block only if currently pending — allow if rejected (re-request)
     if loan.return_requested_date and loan.return_status == 'pending':
         return Response({'error': 'Return already requested. Please wait for admin verification.'}, status=400)
 
-    # First request OR re-request after rejection
     loan.return_requested_date = date.today()
     loan.return_status = 'pending'
-    loan.notes = ''  # clear old rejection reason
+    loan.notes = ''
     loan.save()
 
     return Response({
@@ -253,6 +257,85 @@ def borrower_pending_returns(request):
     return Response(serializer.data)
 
 
+# ── Reservation views ──
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def borrower_reserve(request):
+    """Borrower reserves a book that is currently On Loan."""
+    try:
+        member = request.user.member
+    except:
+        return Response({'error': 'No member profile found.'}, status=400)
+
+    book_id = request.data.get('book_id')
+    try:
+        book = Book.objects.get(pk=book_id)
+    except Book.DoesNotExist:
+        return Response({'error': 'Book not found.'}, status=404)
+
+    # Can't reserve an available book — just borrow it
+    if book.available:
+        return Response({'error': 'This book is available. You can borrow it directly.'}, status=400)
+
+    # Check if already reserved by this member
+    already = Reservation.objects.filter(
+        member=member, book=book, status__in=['waiting', 'ready']
+    ).exists()
+    if already:
+        return Response({'error': 'You already have a reservation for this book.'}, status=400)
+
+    reservation = Reservation.objects.create(member=member, book=book)
+
+    # Set queue position
+    reservation.queue_position = Reservation.objects.filter(
+        book=book, status='waiting'
+    ).count()
+    reservation.save()
+
+    return Response(ReservationSerializer(reservation, context={'request': request}).data, status=201)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def borrower_cancel_reservation(request, reservation_id):
+    """Borrower cancels their reservation."""
+    try:
+        member = request.user.member
+    except:
+        return Response({'error': 'No member profile found.'}, status=400)
+
+    try:
+        reservation = Reservation.objects.get(pk=reservation_id, member=member)
+    except Reservation.DoesNotExist:
+        return Response({'error': 'Reservation not found.'}, status=404)
+
+    if reservation.status not in ['waiting', 'ready']:
+        return Response({'error': 'This reservation cannot be cancelled.'}, status=400)
+
+    reservation.status = 'cancelled'
+    reservation.save()
+
+    return Response({'message': 'Reservation cancelled successfully.'})
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def borrower_my_reservations(request):
+    """Get all reservations for the logged-in borrower."""
+    try:
+        member = request.user.member
+    except:
+        return Response({'error': 'No member profile found.'}, status=400)
+
+    reservations = Reservation.objects.filter(
+        member=member
+    ).exclude(status__in=['cancelled', 'fulfilled', 'expired']).order_by('-reserved_date')
+
+    serializer = ReservationSerializer(reservations, many=True, context={'request': request})
+    return Response(serializer.data)
+
+
 # ── Admin views for return verification ──
 
 @api_view(['GET'])
@@ -280,7 +363,7 @@ def admin_verify_return(request):
     serializer = ReturnVerificationSerializer(data=request.data)
     if serializer.is_valid():
         loan_id = serializer.validated_data['loan_id']
-        notes = serializer.validated_data.get('notes', '')
+        notes   = serializer.validated_data.get('notes', '')
 
         try:
             loan = Loan.objects.get(pk=loan_id)
@@ -288,11 +371,21 @@ def admin_verify_return(request):
             return Response({'error': 'Loan not found.'}, status=404)
 
         loan.return_verified_date = date.today()
-        loan.return_date = date.today()
-        loan.return_status = 'verified'
-        loan.verified_by = request.user
-        loan.notes = notes
+        loan.return_date          = date.today()
+        loan.return_status        = 'verified'
+        loan.verified_by          = request.user
+        loan.notes                = notes
         loan.save()
+
+        # ── Notify next person in reservation queue ──
+        next_reservation = Reservation.objects.filter(
+            book=loan.book, status='waiting'
+        ).order_by('reserved_date').first()
+
+        if next_reservation:
+            next_reservation.status        = 'ready'
+            next_reservation.notified_date = date.today()
+            next_reservation.save()
 
         return Response({
             'message': f'Return verified for "{loan.book.title}" by {loan.member.name}',
@@ -308,7 +401,7 @@ def admin_reject_return(request):
     if not request.user.is_staff:
         return Response({'error': 'Unauthorized.'}, status=403)
 
-    loan_id = request.data.get('loan_id')
+    loan_id          = request.data.get('loan_id')
     rejection_reason = request.data.get('reason', 'Return not verified')
 
     try:
@@ -316,9 +409,9 @@ def admin_reject_return(request):
     except Loan.DoesNotExist:
         return Response({'error': 'Loan not found.'}, status=404)
 
-    loan.return_status = 'rejected'
-    loan.notes = rejection_reason
-    loan.return_requested_date = None  # ← lets borrower re-request
+    loan.return_status           = 'rejected'
+    loan.notes                   = rejection_reason
+    loan.return_requested_date   = None
     loan.save()
 
     return Response({
@@ -348,55 +441,55 @@ def admin_stats(request):
             return_verified_date__isnull=True
         ).count(),
         'total_members': Member.objects.count(),
-        'total_books': Book.objects.count(),
+        'total_books':   Book.objects.count(),
     })
 
 
 # ── Admin CRUD views ──
 
 class AuthorListCreateView(ListCreateAPIView):
-    queryset = Author.objects.all()
-    serializer_class = AuthorSerializer
+    queryset          = Author.objects.all()
+    serializer_class  = AuthorSerializer
 
 
 class AuthorRetrieveUpdateDestroyView(RetrieveUpdateDestroyAPIView):
-    queryset = Author.objects.all()
-    serializer_class = AuthorSerializer
+    queryset          = Author.objects.all()
+    serializer_class  = AuthorSerializer
 
 
 class BookListCreateView(ListCreateAPIView):
-    queryset = Book.objects.all()
-    serializer_class = BookSerializer
-    parser_classes = [MultiPartParser, FormParser, JSONParser]
+    queryset          = Book.objects.all()
+    serializer_class  = BookSerializer
+    parser_classes    = [MultiPartParser, FormParser, JSONParser]
 
     def get_serializer_context(self):
         return {'request': self.request}
 
 
 class BookRetrieveUpdateDestroyView(RetrieveUpdateDestroyAPIView):
-    queryset = Book.objects.all()
-    serializer_class = BookSerializer
-    parser_classes = [MultiPartParser, FormParser, JSONParser]
+    queryset          = Book.objects.all()
+    serializer_class  = BookSerializer
+    parser_classes    = [MultiPartParser, FormParser, JSONParser]
 
     def get_serializer_context(self):
         return {'request': self.request}
 
 
 class MemberListCreateView(ListCreateAPIView):
-    queryset = Member.objects.all()
-    serializer_class = MemberSerializer
+    queryset          = Member.objects.all()
+    serializer_class  = MemberSerializer
 
 
 class MemberRetrieveUpdateDestroyView(RetrieveUpdateDestroyAPIView):
-    queryset = Member.objects.all()
-    serializer_class = MemberSerializer
+    queryset          = Member.objects.all()
+    serializer_class  = MemberSerializer
 
 
 class LoanListCreateView(ListCreateAPIView):
-    queryset = Loan.objects.all()
-    serializer_class = LoanSerializer
+    queryset          = Loan.objects.all()
+    serializer_class  = LoanSerializer
 
 
 class LoanRetrieveUpdateDestroyView(RetrieveUpdateDestroyAPIView):
-    queryset = Loan.objects.all()
-    serializer_class = LoanSerializer
+    queryset          = Loan.objects.all()
+    serializer_class  = LoanSerializer

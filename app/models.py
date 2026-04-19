@@ -1,61 +1,49 @@
 from django.db import models
 from datetime import timedelta, date
-from django.contrib.auth.models import User
+from django.conf import settings
+
 
 class Author(models.Model):
-    name = models.CharField(max_length=100)
-    biography = models.TextField()
+    name        = models.CharField(max_length=100)
+    biography   = models.TextField()
     nationality = models.CharField(max_length=50)
 
     def __str__(self):
         return self.name
 
+
 class Book(models.Model):
-    title = models.CharField(max_length=200)
-    isbn = models.CharField(max_length=20, unique=True)
+    title            = models.CharField(max_length=200)
+    isbn             = models.CharField(max_length=20, unique=True)
     publication_year = models.IntegerField()
-    author = models.ForeignKey(Author, on_delete=models.CASCADE)
-    available = models.BooleanField(default=True)
-    cover_image = models.ImageField(upload_to='book_covers/', null=True, blank=True)
-    description = models.TextField(blank=True, null=True)
+    author           = models.ForeignKey(Author, on_delete=models.CASCADE)
+    available        = models.BooleanField(default=True)
+    cover_image      = models.ImageField(upload_to='book_covers/', null=True, blank=True)
+    description      = models.TextField(blank=True, null=True)
 
     def __str__(self):
         return self.title
 
-class Member(models.Model):
-    user = models.OneToOneField(User, on_delete=models.CASCADE, null=True, blank=True)
-    name = models.CharField(max_length=100)
-    email = models.EmailField(max_length=100)
-    contact_number = models.CharField(max_length=100)
-    join_date = models.DateField()
-    address = models.CharField(max_length=100)
-
-    def __str__(self):
-        return self.name
 
 class Loan(models.Model):
     RETURN_STATUS_CHOICES = [
-        ('none', 'No Request'),
-        ('pending', 'Pending Return'),
+        ('none',     'No Request'),
+        ('pending',  'Pending Return'),
         ('verified', 'Returned & Verified'),
         ('rejected', 'Return Rejected'),
         ('disputed', 'Disputed'),
     ]
 
-    member = models.ForeignKey(Member, on_delete=models.CASCADE)
-    book = models.ForeignKey(Book, on_delete=models.CASCADE)
-    loan_date = models.DateField()
-    due_date = models.DateField(null=True, blank=True)
-    return_date = models.DateField(null=True, blank=True)
+    member                = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='loans')
+    book                  = models.ForeignKey(Book, on_delete=models.CASCADE)
+    loan_date             = models.DateField()
+    due_date              = models.DateField(null=True, blank=True)
+    return_date           = models.DateField(null=True, blank=True)
     return_requested_date = models.DateField(null=True, blank=True)
-    return_verified_date = models.DateField(null=True, blank=True)
-    return_status = models.CharField(
-        max_length=20,
-        choices=RETURN_STATUS_CHOICES,
-        default='none'
-    )
-    verified_by = models.ForeignKey(
-        User,
+    return_verified_date  = models.DateField(null=True, blank=True)
+    return_status         = models.CharField(max_length=20, choices=RETURN_STATUS_CHOICES, default='none')
+    verified_by           = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
         null=True, blank=True,
         related_name='verified_returns'
@@ -97,24 +85,23 @@ class Loan(models.Model):
 
 class Reservation(models.Model):
     STATUS_CHOICES = [
-        ('waiting', 'Waiting'),       
-        ('ready', 'Ready to Borrow'), 
-        ('cancelled', 'Cancelled'),   # borrower cancelled
-        ('expired', 'Expired'),       # didn't borrow within 24hrs
-        ('fulfilled', 'Fulfilled'),   # they borrowed the book
+        ('waiting',   'Waiting'),
+        ('ready',     'Ready to Borrow'),
+        ('cancelled', 'Cancelled'),
+        ('expired',   'Expired'),
+        ('fulfilled', 'Fulfilled'),
     ]
 
-    member = models.ForeignKey(Member, on_delete=models.CASCADE, related_name='reservations')
-    book = models.ForeignKey(Book, on_delete=models.CASCADE, related_name='reservations')
-    reserved_date = models.DateField(auto_now_add=True)
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='waiting')
-    notified_date = models.DateField(null=True, blank=True)  # when they were told it's ready
+    member         = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='reservations')
+    book           = models.ForeignKey(Book, on_delete=models.CASCADE, related_name='reservations')
+    reserved_date  = models.DateField(auto_now_add=True)
+    status         = models.CharField(max_length=20, choices=STATUS_CHOICES, default='waiting')
+    notified_date  = models.DateField(null=True, blank=True)
     queue_position = models.PositiveIntegerField(default=1)
 
     class Meta:
-        unique_together = ('member', 'book', 'status')  # can't reserve same book twice while waiting/ready
-        ordering = ['reserved_date']
+        unique_together = ('member', 'book', 'status')
+        ordering        = ['reserved_date']
 
     def __str__(self):
         return f"{self.member.name} reserved {self.book.title} - {self.get_status_display()}"
-        

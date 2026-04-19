@@ -123,13 +123,13 @@ export const borrowerReturnRequest = (loanId: number) =>
 export const borrowerHistory = () => request<Loan[]>('/borrower/history/');
 export const borrowerPendingReturns = () => request<Loan[]>('/borrower/pending-returns/');
 
-// ✅ Reservation routes (NEW)
+// ✅ Reservation routes (FIXED)
 export const borrowerReserve = (book_id: number) =>
   request<Reservation>('/borrower/reserve/', { method: 'POST', body: JSON.stringify({ book_id }) });
 export const borrowerMyReservations = () =>
-  request<Reservation[]>('/borrower/my-reservations/');
+  request<Reservation[]>('/borrower/reservations/');
 export const borrowerCancelReservation = (reservationId: number) =>
-  request<{ message: string }>(`/borrower/cancel-reservation/${reservationId}/`, { method: 'POST' });
+  request<{ message: string }>(`/borrower/reservations/${reservationId}/cancel/`, { method: 'POST' });
 
 // Admin routes for return verification
 export const getPendingReturns = () => request<PendingReturn[]>('/admin/pending-returns/');

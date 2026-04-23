@@ -1,10 +1,16 @@
+<<<<<<< Updated upstream
 import React, { useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
+=======
+import { useState, useEffect, useCallback } from 'react';
+import api from './api';
+>>>>>>> Stashed changes
 import Sidebar from './components/Sidebar';
 import BookTable from './components/BookTable';
 import AuthorTable from './components/AuthorTable';
 import MemberTable from './components/MemberTable';
 import LoanTable from './components/LoanTable';
+<<<<<<< Updated upstream
 import LoginPage from './components/LoginPage';
 import RegisterPage from './components/RegisterPage';
 import BorrowerDashboard from './components/BorrowerDashboard';
@@ -152,10 +158,66 @@ const Dashboard: React.FC = () => {
           )}
         </div>
       </div>
+=======
+import AddBookForm from './components/AddBookForm';
+import { Book, Author, Member, Loan } from './types';
+
+function App() {
+  const [activeTab, setActiveTab] = useState('books');
+  const [books, setBooks] = useState<Book[]>([]);
+  const [authors, setAuthors] = useState<Author[]>([]);
+  const [members, setMembers] = useState<Member[]>([]);
+  const [loans, setLoans] = useState<Loan[]>([]);
+
+  // Consolidating all fetch logic into one function
+  const fetchData = useCallback(async () => {
+    try {
+      const response = await api.get(`${activeTab}/`);
+      if (activeTab === 'books') setBooks(response.data);
+      if (activeTab === 'authors') setAuthors(response.data);
+      if (activeTab === 'members') setMembers(response.data);
+      if (activeTab === 'loans') setLoans(response.data);
+    } catch (err) {
+      console.error(`Error fetching ${activeTab}:`, err);
+    }
+  }, [activeTab]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  const deleteBook = async (id: number) => {
+    try {
+      await api.delete(`books/${id}/`);
+      setBooks(books.filter((book) => book.id !== id));
+    } catch (err) {
+      console.error("Error deleting book:", err);
+    }
+  };
+
+  return (
+    <div className="flex min-h-screen">
+      <Sidebar setActiveTab={setActiveTab} />
+      
+      <main className="flex-1 p-10 bg-gray-50">
+        <h1 className="text-3xl font-bold mb-6 capitalize">{activeTab} Management</h1>
+        
+        {activeTab === 'books' && (
+          <>
+            <AddBookForm onBookAdded={fetchData} />
+            <BookTable books={books} onDelete={deleteBook} />
+          </>
+        )}
+        {activeTab === 'authors' && <AuthorTable authors={authors} />}
+        {activeTab === 'members' && <MemberTable members={members} />}
+        {activeTab === 'loans' && <LoanTable loans={loans} />}
+      </main>
+>>>>>>> Stashed changes
     </div>
   );
 };
 
+<<<<<<< Updated upstream
 const App: React.FC = () => {
   const [token,    setToken]    = useState(localStorage.getItem('token') || '');
   const [username, setUsername] = useState(localStorage.getItem('username') || '');
@@ -237,4 +299,6 @@ const App: React.FC = () => {
   );
 };
 
+=======
+>>>>>>> Stashed changes
 export default App;

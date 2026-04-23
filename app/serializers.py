@@ -17,6 +17,7 @@ class BookSerializer(serializers.ModelSerializer):
     cover_image_url = serializers.SerializerMethodField()
 
     class Meta:
+<<<<<<< Updated upstream
         model  = Book
         fields = ['id', 'title', 'isbn', 'publication_year', 'author',
                   'author_name', 'available', 'cover_image', 'cover_image_url', 'description']
@@ -114,3 +115,18 @@ class ReturnVerificationSerializer(serializers.Serializer):
         except Loan.DoesNotExist:
             raise serializers.ValidationError("Loan not found.")
         return value
+=======
+        model = Member
+        fields = '__all__'
+        
+class LoanSerializer(serializers.ModelSerializer):
+    # This pulls the 'name' from the related Member model
+    member_name = serializers.ReadOnlyField(source='member.name')
+    # This pulls the 'title' from the related Book model
+    book_title = serializers.ReadOnlyField(source='book.title')
+
+    class Meta:
+        model = Loan
+        # Include these new fields instead of just relying on the ForeignKey ID
+        fields = ['id', 'loan_date', 'return_date', 'member_name', 'book_title']
+>>>>>>> Stashed changes

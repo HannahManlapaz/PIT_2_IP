@@ -25,10 +25,7 @@ INSTALLED_APPS = [
     'app',
     'djoser',
     'corsheaders',
-<<<<<<< Updated upstream
     'user',
-=======
->>>>>>> Stashed changes
 ]
 
 MIDDLEWARE = [
@@ -76,7 +73,7 @@ CLOUDINARY_STORAGE = {
     'CLOUD_NAME': os.environ.get('CLOUDINARY_CLOUD_NAME'),
     'API_KEY': os.environ.get('CLOUDINARY_API_KEY'),
     'API_SECRET': os.environ.get('CLOUDINARY_API_SECRET'),
-    'PREFIX': '',  # ← prevents 'media/' from being prepended to Cloudinary public IDs
+    'PREFIX': '',
 }
 
 STORAGES = {
@@ -88,7 +85,6 @@ STORAGES = {
     },
 }
 
-# Set to empty string so Django doesn't prepend 'media/' to Cloudinary upload paths
 MEDIA_URL = ''
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
@@ -107,7 +103,6 @@ USE_I18N = True
 USE_TZ = True
 
 STATIC_URL = 'static/'
-<<<<<<< Updated upstream
 
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
@@ -137,9 +132,3 @@ DJOSER = {
         'user':        'user.serializers.UserSerializer',
     },
 }
-=======
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-]
->>>>>>> Stashed changes

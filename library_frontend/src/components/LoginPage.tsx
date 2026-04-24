@@ -8,22 +8,22 @@ interface Props {
 }
 
 const LoginPage: React.FC<Props> = ({ onLogin }) => {
-  const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!username || !password) {
-      setError('Please enter username and password.');
+    if (!email || !password) {
+      setError('Please enter email and password.');
       return;
     }
     try {
       setLoading(true);
       setError('');
-      const data = await loginApi(username, password);
-      if (data.token) {
+      const data = await loginApi(email, password);
+      if (data.token || data.access) {
         onLogin(data);
       } else {
         setError(data.error || 'Invalid credentials.');
@@ -152,18 +152,18 @@ const LoginPage: React.FC<Props> = ({ onLogin }) => {
               <form onSubmit={handleSubmit} className="space-y-5">
                 <div>
                   <label className="block text-white/70 text-sm font-medium mb-2">
-                    Username
-                  </label>
-                  <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40 text-sm">👤</span>
-                    <input
-                      type="text"
-                      value={username}
-                      onChange={(e) => setUsername(e.target.value)}
-                      className="w-full pl-9 pr-4 py-2.5 bg-white/5 border border-white/10 rounded-lg text-white placeholder-white/30 focus:outline-none focus:border-amber-500/50 focus:ring-2 focus:ring-amber-500/20 transition-all duration-200"
-                      placeholder="Enter your username"
-                      autoFocus
-                    />
+                  Email
+                </label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40 text-sm">✉️</span>
+                  <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full pl-9 pr-4 py-2.5 bg-white/5 border border-white/10 rounded-lg text-white placeholder-white/30 focus:outline-none focus:border-amber-500/50 focus:ring-2 focus:ring-amber-500/20 transition-all duration-200"
+                  placeholder="Enter your email"
+                  autoFocus
+                  />
                   </div>
                 </div>
 

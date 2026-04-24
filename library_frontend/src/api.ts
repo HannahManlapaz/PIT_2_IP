@@ -1,5 +1,5 @@
 // src/api.ts
-import { Author, Book, Member, Loan, AuthUser, StaffUser, SuperadminStats, AdminStats, PendingReturn, Reservation } from './types';
+import { Author, Book, Member, Loan, AuthUser, StaffUser, SuperadminStats, AdminStats, PendingReturn, Reservation, UserProfile } from './types';
 
 const BASE_URL = 'http://127.0.0.1:8000/api';
 
@@ -10,7 +10,7 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   try {
     res = await fetch(`${BASE_URL}${path}`, {
       headers: {
-        'Authorization': `Token ${getToken()}`,
+        'Authorization': `Bearer ${getToken()}`,
         ...(options?.body instanceof FormData ? {} : { 'Content-Type': 'application/json' }),
       },
       ...options,
@@ -37,21 +37,21 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 }
 
 // Auth
-export const loginApi = (username: string, password: string): Promise<AuthUser> =>
-  fetch(`${BASE_URL}/login/`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ username, password }),
-  }).then(res => res.json());
-
 export const registerApi = (data: {
   username: string; password: string; name: string;
   email: string; contact_number: string; address: string;
-}): Promise<AuthUser> =>
-  fetch(`${BASE_URL}/register/`, {
+}): Promise<any> =>
+  fetch(`${BASE_URL}/auth/users/`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
+  }).then(res => res.json());
+
+export const loginApi = (email: string, password: string): Promise<AuthUser> =>
+  fetch(`${BASE_URL}/login/`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password }),
   }).then(res => res.json());
 
 export const logoutApi = () =>
@@ -115,6 +115,7 @@ export const deleteLoan = (id: number) =>
   request<void>(`/loans/${id}/`, { method: 'DELETE' });
 
 // Borrower routes
+export const getProfile = () => request<UserProfile>('/borrower/profile/');
 export const borrowerGetBooks = () => request<Book[]>('/borrower/books/');
 export const borrowerBorrow = (book_id: number) =>
   request<Loan>('/borrower/borrow/', { method: 'POST', body: JSON.stringify({ book_id }) });
@@ -123,15 +124,15 @@ export const borrowerReturnRequest = (loanId: number) =>
 export const borrowerHistory = () => request<Loan[]>('/borrower/history/');
 export const borrowerPendingReturns = () => request<Loan[]>('/borrower/pending-returns/');
 
-// ✅ Reservation routes (FIXED)
+// Reservation routes
 export const borrowerReserve = (book_id: number) =>
   request<Reservation>('/borrower/reserve/', { method: 'POST', body: JSON.stringify({ book_id }) });
 export const borrowerMyReservations = () =>
-  request<Reservation[]>('/borrower/reservations/');
+  request<Reservation[]>('/borrower/my-reservations/');
 export const borrowerCancelReservation = (reservationId: number) =>
-  request<{ message: string }>(`/borrower/reservations/${reservationId}/cancel/`, { method: 'POST' });
+  request<{ message: string }>(`/borrower/cancel-reservation/${reservationId}/`, { method: 'POST' });
 
-// Admin routes for return verification
+// Admin routes
 export const getPendingReturns = () => request<PendingReturn[]>('/admin/pending-returns/');
 export const verifyReturn = (loanId: number, notes?: string) =>
   request<{ message: string; loan: Loan }>('/admin/verify-return/', {
@@ -153,7 +154,7 @@ export const superadminCreateStaff = (data: {
   password: string;
   email?: string;
   first_name?: string;
-  last_name?: string
+  last_name?: string;
 }) =>
   request<StaffUser>('/superadmin/staff/create/', { method: 'POST', body: JSON.stringify(data) });
 export const superadminToggleStaff = (id: number) =>
@@ -166,3 +167,18 @@ export const superadminEditStaff = (id: number, data: {
   email?: string;
   password?: string;
 }) => request<StaffUser>(`/superadmin/staff/${id}/edit/`, { method: 'PATCH', body: JSON.stringify(data) });
+
+export const updateProfile = (data: {
+  name?: string; contact_number?: string; address?: string; birthday?: string;
+}) => request<UserProfile>('/borrower/profile/', {
+  method: 'PATCH', body: JSON.stringify(data),
+});
+
+export const changePassword = (data: {
+  old_password: string; new_password: string;
+}) => request<{ message: string }>('/borrower/profile/change-password/', {
+  method: 'POST', body: JSON.stringify(data),
+});
+
+export const deleteAccount = () =>
+  request<void>('/borrower/profile/', { method: 'DELETE' });

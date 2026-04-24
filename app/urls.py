@@ -3,39 +3,41 @@ from . import views
 
 urlpatterns = [
     # Authentication
-    path('login/',  views.login_view,  name='login'),
-    path('logout/', views.logout_view, name='logout'),
+    path('login/',  views.LoginView.as_view(),  name='login'),
+    path('logout/', views.LogoutView.as_view(), name='logout'),
 
-    # Superadmin routes
-    path('superadmin/stats/',                      views.superadmin_stats,        name='superadmin-stats'),
-    path('superadmin/staff/',                      views.superadmin_get_staff,    name='superadmin-staff-list'),
-    path('superadmin/staff/create/',               views.superadmin_create_staff, name='superadmin-staff-create'),
-    path('superadmin/staff/<int:user_id>/toggle/', views.superadmin_toggle_staff, name='superadmin-staff-toggle'),
-    path('superadmin/staff/<int:user_id>/delete/', views.superadmin_delete_staff, name='superadmin-staff-delete'),
-    path('superadmin/staff/<int:user_id>/edit/',   views.superadmin_edit_staff,   name='superadmin-staff-edit'),
+    # Superadmin
+    path('superadmin/stats/',                      views.SuperadminStatsView.as_view(),           name='superadmin-stats'),
+    path('superadmin/staff/',                      views.SuperadminStaffListCreateView.as_view(), name='superadmin-staff-list'),
+    path('superadmin/staff/create/',               views.SuperadminStaffListCreateView.as_view(), name='superadmin-staff-create'),
+    path('superadmin/staff/<int:user_id>/toggle/', views.SuperadminStaffToggleView.as_view(),     name='superadmin-staff-toggle'),
+    path('superadmin/staff/<int:user_id>/delete/', views.SuperadminStaffDetailView.as_view(),     name='superadmin-staff-delete'),
+    path('superadmin/staff/<int:user_id>/edit/',   views.SuperadminStaffDetailView.as_view(),     name='superadmin-staff-edit'),
 
-    # Borrower routes
-    path('borrower/books/',                                   views.borrower_books,            name='borrower-books'),
-    path('borrower/borrow/',                                  views.borrower_borrow,           name='borrower-borrow'),
-    path('borrower/return-request/<int:loan_id>/',            views.borrower_return_request,   name='borrower-return-request'),
-    path('borrower/history/',                                 views.borrower_history,          name='borrower-history'),
-    path('borrower/pending-returns/',                         views.borrower_pending_returns,  name='borrower-pending-returns'),
-    path('borrower/reserve/',                                 views.borrower_reserve,          name='borrower-reserve'),
-    path('borrower/my-reservations/',                         views.borrower_my_reservations,  name='borrower-my-reservations'),
-    path('borrower/cancel-reservation/<int:reservation_id>/', views.borrower_cancel_reservation, name='borrower-cancel-reservation'),
+    # Borrower
+    path('borrower/profile/',                                 views.BorrowerProfileView.as_view(),           name='borrower-profile'),
+    path('borrower/profile/change-password/',                 views.BorrowerChangePasswordView.as_view(),    name='borrower-change-password'),
+    path('borrower/books/',                                   views.BorrowerBooksView.as_view(),             name='borrower-books'),
+    path('borrower/borrow/',                                  views.BorrowerBorrowView.as_view(),            name='borrower-borrow'),
+    path('borrower/return-request/<int:loan_id>/',            views.BorrowerReturnRequestView.as_view(),     name='borrower-return-request'),
+    path('borrower/history/',                                 views.BorrowerHistoryView.as_view(),           name='borrower-history'),
+    path('borrower/pending-returns/',                         views.BorrowerPendingReturnsView.as_view(),    name='borrower-pending-returns'),
+    path('borrower/reserve/',                                 views.BorrowerReserveView.as_view(),           name='borrower-reserve'),
+    path('borrower/my-reservations/',                         views.BorrowerMyReservationsView.as_view(),    name='borrower-my-reservations'),
+    path('borrower/cancel-reservation/<int:reservation_id>/', views.BorrowerCancelReservationView.as_view(), name='borrower-cancel-reservation'),
 
-    # Admin routes
-    path('admin/pending-returns/', views.admin_pending_returns, name='admin-pending-returns'),
-    path('admin/verify-return/',   views.admin_verify_return,   name='admin-verify-return'),
-    path('admin/reject-return/',   views.admin_reject_return,   name='admin-reject-return'),
-    path('admin/stats/',           views.admin_stats,           name='admin-stats'),
+    # Admin
+    path('admin/pending-returns/', views.AdminPendingReturnsView.as_view(), name='admin-pending-returns'),
+    path('admin/verify-return/',   views.AdminVerifyReturnView.as_view(),   name='admin-verify-return'),
+    path('admin/reject-return/',   views.AdminRejectReturnView.as_view(),   name='admin-reject-return'),
+    path('admin/stats/',           views.AdminStatsView.as_view(),          name='admin-stats'),
 
-    # Admin CRUD routes
+    # Admin CRUD
     path('authors/',          views.AuthorListCreateView.as_view(),            name='author-list'),
     path('authors/<int:pk>/', views.AuthorRetrieveUpdateDestroyView.as_view(), name='author-detail'),
     path('books/',            views.BookListCreateView.as_view(),              name='book-list'),
     path('books/<int:pk>/',   views.BookRetrieveUpdateDestroyView.as_view(),   name='book-detail'),
     path('loans/',            views.LoanListCreateView.as_view(),              name='loan-list'),
     path('loans/<int:pk>/',   views.LoanRetrieveUpdateDestroyView.as_view(),   name='loan-detail'),
-    path('change-password/', views.change_password, name='change-password'),
+    path('change-password/',  views.ChangePasswordView.as_view(),              name='change-password'),
 ]

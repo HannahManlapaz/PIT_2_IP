@@ -1,13 +1,12 @@
-from django.shortcuts import render
 from .models import Author, Book, Loan, Reservation
 from .serializers import (
     AuthorSerializer, BookSerializer,
-    LoanSerializer, ReturnRequestSerializer, ReturnVerificationSerializer,
+    LoanSerializer, ReturnVerificationSerializer,
     ReservationSerializer
 )
-from user.serializers import UserSerializer, UserCreateSerializer
+from user.serializers import UserSerializer, UserCreateSerializer, UserProfileSerializer
 from rest_framework.generics import ListCreateAPIView, RetrieveUpdateDestroyAPIView
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.views import APIView
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework import status
@@ -18,297 +17,349 @@ from datetime import date
 User = get_user_model()
 
 
-@api_view(['POST'])
-@permission_classes([AllowAny])
-def login_view(request):
-    from django.contrib.auth import authenticate
-    from rest_framework_simplejwt.tokens import RefreshToken
+# ── Auth ──
 
-    username = request.data.get('username')
-    email    = request.data.get('email')
-    password = request.data.get('password')
+class LoginView(APIView):
+    permission_classes = [AllowAny]
 
-    # Try username first, then email
-    user = None
-    if username:
-        user = authenticate(username=username, password=password)
-    if not user and email:
+    def post(self, request):
+        from rest_framework_simplejwt.tokens import RefreshToken
+
+        email    = request.data.get('email', '').strip().lower()
+        password = request.data.get('password', '')
+
+        if not email or not password:
+            return Response({'error': 'Email and password are required.'}, status=status.HTTP_400_BAD_REQUEST)
+
         try:
-            u = User.objects.get(email=email)
-            user = authenticate(username=u.username, password=password)
+            user = User.objects.get(email=email)
         except User.DoesNotExist:
-            pass
+            return Response({'error': 'Invalid credentials'}, status=status.HTTP_401_UNAUTHORIZED)
 
-    if user:
+        if not user.check_password(password):
+            return Response({'error': 'Invalid credentials'}, status=status.HTTP_401_UNAUTHORIZED)
+
+        if not user.is_active:
+            return Response({'error': 'Account is disabled.'}, status=status.HTTP_403_FORBIDDEN)
+
         refresh = RefreshToken.for_user(user)
-        if user.is_superuser:
-            role = 'superadmin'
-        elif user.is_staff:
-            role = 'admin'
-        else:
-            role = 'borrower'
+        role = 'superadmin' if user.is_superuser else 'staff' if user.is_staff else 'borrower'
+
+        member_id = None
+        if role == 'borrower':
+            try:
+                member_id = user.member.id
+            except Exception:
+                pass
+
         return Response({
-            'access':   str(refresh.access_token),
-            'refresh':  str(refresh),
-            'username': user.username,
-            'email':    user.email,
-            'role':     role,
-            'user_id':  user.id,
+            'access':    str(refresh.access_token),
+            'refresh':   str(refresh),
+            'username':  user.username,
+            'email':     user.email,
+            'role':      role,
+            'user_id':   user.id,
+            'member_id': member_id,
         })
-    return Response({'error': 'Invalid credentials'}, status=status.HTTP_401_UNAUTHORIZED)
 
 
-@api_view(['POST'])
-@permission_classes([IsAuthenticated])
-def logout_view(request):
-    # JWT is stateless — just tell frontend to discard the token
-    return Response({'message': 'Logged out successfully.'})
+class LogoutView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        return Response({'message': 'Logged out successfully.'})
 
 
-# ── Superadmin views ──
+# ── Superadmin ──
 
-@api_view(['GET'])
-@permission_classes([IsAuthenticated])
-def superadmin_get_staff(request):
-    if not request.user.is_superuser:
-        return Response({'error': 'Unauthorized.'}, status=403)
-    staff = User.objects.filter(is_staff=True, is_superuser=False)
-    serializer = UserSerializer(staff, many=True)
-    return Response(serializer.data)
+class SuperadminStatsView(APIView):
+    permission_classes = [IsAuthenticated]
 
-
-@api_view(['POST'])
-@permission_classes([IsAuthenticated])
-def superadmin_create_staff(request):
-    if not request.user.is_superuser:
-        return Response({'error': 'Unauthorized.'}, status=403)
-    serializer = UserCreateSerializer(data=request.data)
-    if serializer.is_valid():
-        user = User.objects.create_user(
-            username=serializer.validated_data['username'],
-            password=serializer.validated_data['password'],
-            email=serializer.validated_data.get('email', ''),
-            name=serializer.validated_data.get('name', ''),
-            is_staff=True,
-        )
-        return Response(UserSerializer(user).data, status=201)
-    return Response(serializer.errors, status=400)
+    def get(self, request):
+        if not request.user.is_superuser:
+            return Response({'error': 'Unauthorized.'}, status=status.HTTP_403_FORBIDDEN)
+        return Response({
+            'total_books':     Book.objects.count(),
+            'total_authors':   Author.objects.count(),
+            'total_members':   User.objects.filter(is_staff=False, is_superuser=False).count(),
+            'total_loans':     Loan.objects.count(),
+            'active_loans':    Loan.objects.filter(return_verified_date__isnull=True, return_requested_date__isnull=True).count(),
+            'pending_returns': Loan.objects.filter(return_requested_date__isnull=False, return_verified_date__isnull=True).count(),
+            'total_staff':     User.objects.filter(is_staff=True, is_superuser=False).count(),
+        })
 
 
-@api_view(['PATCH'])
-@permission_classes([IsAuthenticated])
-def superadmin_toggle_staff(request, user_id):
-    if not request.user.is_superuser:
-        return Response({'error': 'Unauthorized.'}, status=403)
-    try:
-        user = User.objects.get(pk=user_id, is_staff=True, is_superuser=False)
-    except User.DoesNotExist:
-        return Response({'error': 'Staff not found.'}, status=404)
-    user.is_active = not user.is_active
-    user.save()
-    return Response(UserSerializer(user).data)
+class SuperadminStaffListCreateView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        if not request.user.is_superuser:
+            return Response({'error': 'Unauthorized.'}, status=status.HTTP_403_FORBIDDEN)
+        staff = User.objects.filter(is_staff=True, is_superuser=False)
+        return Response(UserSerializer(staff, many=True).data)
+
+    def post(self, request):
+        if not request.user.is_superuser:
+            return Response({'error': 'Unauthorized.'}, status=status.HTTP_403_FORBIDDEN)
+        serializer = UserCreateSerializer(data=request.data)
+        if serializer.is_valid():
+            user = User.objects.create_user(
+                username = serializer.validated_data['username'],
+                password = serializer.validated_data['password'],
+                email    = serializer.validated_data.get('email', ''),
+                name     = serializer.validated_data.get('name', ''),
+                is_staff = True,
+            )
+            return Response(UserSerializer(user).data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-@api_view(['PATCH'])
-@permission_classes([IsAuthenticated])
-def superadmin_edit_staff(request, user_id):
-    if not request.user.is_superuser:
-        return Response({'error': 'Unauthorized.'}, status=403)
-    try:
-        user = User.objects.get(pk=user_id, is_staff=True, is_superuser=False)
-    except User.DoesNotExist:
-        return Response({'error': 'Staff not found.'}, status=404)
-    user.name  = request.data.get('name',  user.name)
-    user.email = request.data.get('email', user.email)
-    if request.data.get('password'):
-        user.set_password(request.data['password'])
-    user.save()
-    return Response(UserSerializer(user).data)
+class SuperadminStaffDetailView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get_staff(self, user_id):
+        try:
+            return User.objects.get(pk=user_id, is_staff=True, is_superuser=False)
+        except User.DoesNotExist:
+            return None
+
+    def patch(self, request, user_id):
+        if not request.user.is_superuser:
+            return Response({'error': 'Unauthorized.'}, status=status.HTTP_403_FORBIDDEN)
+        user = self.get_staff(user_id)
+        if not user:
+            return Response({'error': 'Staff not found.'}, status=status.HTTP_404_NOT_FOUND)
+        user.name  = request.data.get('name',  user.name)
+        user.email = request.data.get('email', user.email)
+        if request.data.get('password'):
+            user.set_password(request.data['password'])
+        user.save()
+        return Response(UserSerializer(user).data)
+
+    def delete(self, request, user_id):
+        if not request.user.is_superuser:
+            return Response({'error': 'Unauthorized.'}, status=status.HTTP_403_FORBIDDEN)
+        user = self.get_staff(user_id)
+        if not user:
+            return Response({'error': 'Staff not found.'}, status=status.HTTP_404_NOT_FOUND)
+        user.delete()
+        return Response({'message': 'Staff deleted.'}, status=status.HTTP_204_NO_CONTENT)
 
 
-@api_view(['DELETE'])
-@permission_classes([IsAuthenticated])
-def superadmin_delete_staff(request, user_id):
-    if not request.user.is_superuser:
-        return Response({'error': 'Unauthorized.'}, status=403)
-    try:
-        user = User.objects.get(pk=user_id, is_staff=True, is_superuser=False)
-    except User.DoesNotExist:
-        return Response({'error': 'Staff not found.'}, status=404)
-    user.delete()
-    return Response({'message': 'Staff deleted.'}, status=204)
+class SuperadminStaffToggleView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def patch(self, request, user_id):
+        if not request.user.is_superuser:
+            return Response({'error': 'Unauthorized.'}, status=status.HTTP_403_FORBIDDEN)
+        try:
+            user = User.objects.get(pk=user_id, is_staff=True, is_superuser=False)
+        except User.DoesNotExist:
+            return Response({'error': 'Staff not found.'}, status=status.HTTP_404_NOT_FOUND)
+        user.is_active = not user.is_active
+        user.save()
+        return Response(UserSerializer(user).data)
 
 
-@api_view(['GET'])
-@permission_classes([IsAuthenticated])
-def superadmin_stats(request):
-    if not request.user.is_superuser:
-        return Response({'error': 'Unauthorized.'}, status=403)
-    return Response({
-        'total_books':      Book.objects.count(),
-        'total_authors':    Author.objects.count(),
-        'total_members':    User.objects.filter(is_staff=False, is_superuser=False).count(),
-        'total_loans':      Loan.objects.count(),
-        'active_loans':     Loan.objects.filter(return_verified_date__isnull=True, return_requested_date__isnull=True).count(),
-        'pending_returns':  Loan.objects.filter(return_requested_date__isnull=False, return_verified_date__isnull=True).count(),
-        'total_staff':      User.objects.filter(is_staff=True, is_superuser=False).count(),
-    })
+# ── Borrower ──
+
+class BorrowerProfileView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        serializer = UserProfileSerializer(request.user)
+        return Response(serializer.data)
+
+    def patch(self, request):
+        serializer = UserProfileSerializer(request.user, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def delete(self, request):
+        request.user.delete()
+        return Response({'message': 'Account deleted successfully.'}, status=status.HTTP_204_NO_CONTENT)
 
 
-# ── Borrower views ──
+class BorrowerChangePasswordView(APIView):
+    permission_classes = [IsAuthenticated]
 
-@api_view(['GET'])
-@permission_classes([IsAuthenticated])
-def borrower_books(request):
-    books = Book.objects.all()
-    serializer = BookSerializer(books, many=True, context={'request': request})
-    return Response(serializer.data)
+    def post(self, request):
+        user         = request.user
+        old_password = request.data.get('old_password', '')
+        new_password = request.data.get('new_password', '')
 
+        if not user.check_password(old_password):
+            return Response({'error': 'Old password is incorrect.'}, status=status.HTTP_400_BAD_REQUEST)
+        if not new_password or len(new_password) < 8:
+            return Response({'error': 'New password must be at least 8 characters.'}, status=status.HTTP_400_BAD_REQUEST)
 
-@api_view(['POST'])
-@permission_classes([IsAuthenticated])
-def borrower_borrow(request):
-    book_id = request.data.get('book_id')
-    try:
-        book = Book.objects.get(pk=book_id)
-    except Book.DoesNotExist:
-        return Response({'error': 'Book not found.'}, status=404)
-
-    if not book.available:
-        return Response({'error': 'This book is currently on loan.'}, status=400)
-
-    loan = Loan.objects.create(member=request.user, book=book, loan_date=date.today())
-
-    Reservation.objects.filter(
-        member=request.user, book=book, status='ready'
-    ).update(status='fulfilled')
-
-    return Response(LoanSerializer(loan).data, status=201)
+        user.set_password(new_password)
+        user.save()
+        return Response({'message': 'Password changed successfully.'})
 
 
-@api_view(['POST'])
-@permission_classes([IsAuthenticated])
-def borrower_return_request(request, loan_id):
-    try:
-        loan = Loan.objects.get(pk=loan_id, member=request.user)
-    except Loan.DoesNotExist:
-        return Response({'error': 'Loan not found.'}, status=404)
+class BorrowerBooksView(APIView):
+    permission_classes = [IsAuthenticated]
 
-    if loan.return_verified_date:
-        return Response({'error': 'Book already returned.'}, status=400)
-    if loan.return_requested_date and loan.return_status == 'pending':
-        return Response({'error': 'Return already requested.'}, status=400)
-
-    loan.return_requested_date = date.today()
-    loan.return_status         = 'pending'
-    loan.notes                 = ''
-    loan.save()
-
-    return Response({
-        'message': 'Return request submitted.',
-        'loan': LoanSerializer(loan).data
-    }, status=status.HTTP_200_OK)
+    def get(self, request):
+        books = Book.objects.all()
+        serializer = BookSerializer(books, many=True, context={'request': request})
+        return Response(serializer.data)
 
 
-@api_view(['GET'])
-@permission_classes([IsAuthenticated])
-def borrower_history(request):
-    loans = Loan.objects.filter(member=request.user).order_by('-loan_date')
-    return Response(LoanSerializer(loans, many=True).data)
+class BorrowerBorrowView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        book_id = request.data.get('book_id')
+        try:
+            book = Book.objects.get(pk=book_id)
+        except Book.DoesNotExist:
+            return Response({'error': 'Book not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        if not book.available:
+            return Response({'error': 'This book is currently on loan.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        loan = Loan.objects.create(member=request.user, book=book, loan_date=date.today())
+        Reservation.objects.filter(
+            member=request.user, book=book, status='ready'
+        ).update(status='fulfilled')
+
+        return Response(LoanSerializer(loan).data, status=status.HTTP_201_CREATED)
 
 
-@api_view(['GET'])
-@permission_classes([IsAuthenticated])
-def borrower_pending_returns(request):
-    loans = Loan.objects.filter(
-        member=request.user,
-        return_requested_date__isnull=False,
-        return_verified_date__isnull=True
-    ).order_by('-return_requested_date')
-    return Response(LoanSerializer(loans, many=True).data)
+class BorrowerReturnRequestView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, loan_id):
+        try:
+            loan = Loan.objects.get(pk=loan_id, member=request.user)
+        except Loan.DoesNotExist:
+            return Response({'error': 'Loan not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        if loan.return_verified_date:
+            return Response({'error': 'Book already returned.'}, status=status.HTTP_400_BAD_REQUEST)
+        if loan.return_requested_date and loan.return_status == 'pending':
+            return Response({'error': 'Return already requested.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        loan.return_requested_date = date.today()
+        loan.return_status         = 'pending'
+        loan.notes                 = ''
+        loan.save()
+
+        return Response({
+            'message': 'Return request submitted.',
+            'loan': LoanSerializer(loan).data
+        })
 
 
-# ── Reservation views ──
+class BorrowerHistoryView(APIView):
+    permission_classes = [IsAuthenticated]
 
-@api_view(['POST'])
-@permission_classes([IsAuthenticated])
-def borrower_reserve(request):
-    book_id = request.data.get('book_id')
-    try:
-        book = Book.objects.get(pk=book_id)
-    except Book.DoesNotExist:
-        return Response({'error': 'Book not found.'}, status=404)
-
-    if book.available:
-        return Response({'error': 'This book is available. You can borrow it directly.'}, status=400)
-
-    already = Reservation.objects.filter(
-        member=request.user, book=book, status__in=['waiting', 'ready']
-    ).exists()
-    if already:
-        return Response({'error': 'You already have a reservation for this book.'}, status=400)
-
-    reservation = Reservation.objects.create(member=request.user, book=book)
-    reservation.queue_position = Reservation.objects.filter(book=book, status='waiting').count()
-    reservation.save()
-
-    return Response(ReservationSerializer(reservation, context={'request': request}).data, status=201)
+    def get(self, request):
+        loans = Loan.objects.filter(member=request.user).order_by('-loan_date')
+        return Response(LoanSerializer(loans, many=True).data)
 
 
-@api_view(['POST'])
-@permission_classes([IsAuthenticated])
-def borrower_cancel_reservation(request, reservation_id):
-    try:
-        reservation = Reservation.objects.get(pk=reservation_id, member=request.user)
-    except Reservation.DoesNotExist:
-        return Response({'error': 'Reservation not found.'}, status=404)
+class BorrowerPendingReturnsView(APIView):
+    permission_classes = [IsAuthenticated]
 
-    if reservation.status not in ['waiting', 'ready']:
-        return Response({'error': 'This reservation cannot be cancelled.'}, status=400)
-
-    reservation.status = 'cancelled'
-    reservation.save()
-    return Response({'message': 'Reservation cancelled successfully.'})
+    def get(self, request):
+        loans = Loan.objects.filter(
+            member=request.user,
+            return_requested_date__isnull=False,
+            return_verified_date__isnull=True
+        ).order_by('-return_requested_date')
+        return Response(LoanSerializer(loans, many=True).data)
 
 
-@api_view(['GET'])
-@permission_classes([IsAuthenticated])
-def borrower_my_reservations(request):
-    reservations = Reservation.objects.filter(
-        member=request.user
-    ).exclude(status__in=['cancelled', 'fulfilled', 'expired']).order_by('-reserved_date')
-    return Response(ReservationSerializer(reservations, many=True, context={'request': request}).data)
+# ── Reservations ──
+
+class BorrowerReserveView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        book_id = request.data.get('book_id')
+        try:
+            book = Book.objects.get(pk=book_id)
+        except Book.DoesNotExist:
+            return Response({'error': 'Book not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        if book.available:
+            return Response({'error': 'This book is available. You can borrow it directly.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        already = Reservation.objects.filter(
+            member=request.user, book=book, status__in=['waiting', 'ready']
+        ).exists()
+        if already:
+            return Response({'error': 'You already have a reservation for this book.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        reservation = Reservation.objects.create(member=request.user, book=book)
+        reservation.queue_position = Reservation.objects.filter(book=book, status='waiting').count()
+        reservation.save()
+
+        return Response(ReservationSerializer(reservation, context={'request': request}).data, status=status.HTTP_201_CREATED)
 
 
-# ── Admin views ──
+class BorrowerMyReservationsView(APIView):
+    permission_classes = [IsAuthenticated]
 
-@api_view(['GET'])
-@permission_classes([IsAuthenticated])
-def admin_pending_returns(request):
-    if not request.user.is_staff:
-        return Response({'error': 'Unauthorized.'}, status=403)
-    loans = Loan.objects.filter(
-        return_requested_date__isnull=False,
-        return_verified_date__isnull=True,
-        return_status='pending'
-    ).select_related('member', 'book').order_by('return_requested_date')
-    return Response(LoanSerializer(loans, many=True).data)
+    def get(self, request):
+        reservations = Reservation.objects.filter(
+            member=request.user
+        ).exclude(status__in=['cancelled', 'fulfilled', 'expired']).order_by('-reserved_date')
+        return Response(ReservationSerializer(reservations, many=True, context={'request': request}).data)
 
 
-@api_view(['POST'])
-@permission_classes([IsAuthenticated])
-def admin_verify_return(request):
-    if not request.user.is_staff:
-        return Response({'error': 'Unauthorized.'}, status=403)
+class BorrowerCancelReservationView(APIView):
+    permission_classes = [IsAuthenticated]
 
-    serializer = ReturnVerificationSerializer(data=request.data)
-    if serializer.is_valid():
-        loan_id = serializer.validated_data['loan_id']
-        notes   = serializer.validated_data.get('notes', '')
+    def post(self, request, reservation_id):
+        try:
+            reservation = Reservation.objects.get(pk=reservation_id, member=request.user)
+        except Reservation.DoesNotExist:
+            return Response({'error': 'Reservation not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        if reservation.status not in ['waiting', 'ready']:
+            return Response({'error': 'This reservation cannot be cancelled.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        reservation.status = 'cancelled'
+        reservation.save()
+        return Response({'message': 'Reservation cancelled successfully.'})
+
+
+# ── Admin ──
+
+class AdminPendingReturnsView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        if not request.user.is_staff:
+            return Response({'error': 'Unauthorized.'}, status=status.HTTP_403_FORBIDDEN)
+        loans = Loan.objects.filter(
+            return_requested_date__isnull=False,
+            return_verified_date__isnull=True,
+            return_status='pending'
+        ).select_related('member', 'book').order_by('return_requested_date')
+        return Response(LoanSerializer(loans, many=True).data)
+
+
+class AdminVerifyReturnView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        if not request.user.is_staff:
+            return Response({'error': 'Unauthorized.'}, status=status.HTTP_403_FORBIDDEN)
+
+        loan_id = request.data.get('loan_id')
+        notes   = request.data.get('notes', '')
+
         try:
             loan = Loan.objects.get(pk=loan_id)
         except Loan.DoesNotExist:
-            return Response({'error': 'Loan not found.'}, status=404)
+            return Response({'error': 'Loan not found.'}, status=status.HTTP_404_NOT_FOUND)
 
         loan.return_verified_date = date.today()
         loan.return_date          = date.today()
@@ -329,61 +380,79 @@ def admin_verify_return(request):
         return Response({
             'message': f'Return verified for "{loan.book.title}" by {loan.member.name}',
             'loan': LoanSerializer(loan).data
-        }, status=status.HTTP_200_OK)
-
-    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        })
 
 
-@api_view(['POST'])
-@permission_classes([IsAuthenticated])
-def admin_reject_return(request):
-    if not request.user.is_staff:
-        return Response({'error': 'Unauthorized.'}, status=403)
+class AdminRejectReturnView(APIView):
+    permission_classes = [IsAuthenticated]
 
-    loan_id          = request.data.get('loan_id')
-    rejection_reason = request.data.get('reason', 'Return not verified')
+    def post(self, request):
+        if not request.user.is_staff:
+            return Response({'error': 'Unauthorized.'}, status=status.HTTP_403_FORBIDDEN)
 
-    try:
-        loan = Loan.objects.get(pk=loan_id)
-    except Loan.DoesNotExist:
-        return Response({'error': 'Loan not found.'}, status=404)
+        loan_id          = request.data.get('loan_id')
+        rejection_reason = request.data.get('reason', 'Return not verified')
 
-    loan.return_status         = 'rejected'
-    loan.notes                 = rejection_reason
-    loan.return_requested_date = None
-    loan.save()
+        try:
+            loan = Loan.objects.get(pk=loan_id)
+        except Loan.DoesNotExist:
+            return Response({'error': 'Loan not found.'}, status=status.HTTP_404_NOT_FOUND)
 
-    return Response({
-        'message': f'Return request rejected for "{loan.book.title}"',
-        'status': 'rejected'
-    }, status=status.HTTP_200_OK)
+        loan.return_status         = 'rejected'
+        loan.notes                 = rejection_reason
+        loan.return_requested_date = None
+        loan.save()
 
-
-@api_view(['GET'])
-@permission_classes([IsAuthenticated])
-def admin_stats(request):
-    if not request.user.is_staff:
-        return Response(status=403)
-    return Response({
-        'pending_returns': Loan.objects.filter(
-            return_status='pending',
-            return_requested_date__isnull=False,
-            return_verified_date__isnull=True
-        ).count(),
-        'active_loans': Loan.objects.filter(
-            return_verified_date__isnull=True,
-            return_requested_date__isnull=True
-        ).count(),
-        'overdue_loans': Loan.objects.filter(
-            due_date__lt=date.today(),
-            return_verified_date__isnull=True
-        ).count(),
-        'total_members': User.objects.filter(is_staff=False, is_superuser=False).count(),
-        'total_books':   Book.objects.count(),
-    })
+        return Response({
+            'message': f'Return request rejected for "{loan.book.title}"',
+            'status': 'rejected'
+        })
 
 
-# ── Admin CRUD views ──
+class AdminStatsView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        if not request.user.is_staff:
+            return Response(status=status.HTTP_403_FORBIDDEN)
+        return Response({
+            'pending_returns': Loan.objects.filter(
+                return_status='pending',
+                return_requested_date__isnull=False,
+                return_verified_date__isnull=True
+            ).count(),
+            'active_loans': Loan.objects.filter(
+                return_verified_date__isnull=True,
+                return_requested_date__isnull=True
+            ).count(),
+            'overdue_loans': Loan.objects.filter(
+                due_date__lt=date.today(),
+                return_verified_date__isnull=True
+            ).count(),
+            'total_members': User.objects.filter(is_staff=False, is_superuser=False).count(),
+            'total_books':   Book.objects.count(),
+        })
+
+
+class ChangePasswordView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        user         = request.user
+        old_password = request.data.get('old_password')
+        new_password = request.data.get('new_password')
+
+        if not user.check_password(old_password):
+            return Response({'error': 'Old password is incorrect.'}, status=status.HTTP_400_BAD_REQUEST)
+        if not new_password or len(new_password) < 8:
+            return Response({'error': 'New password must be at least 8 characters.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        user.set_password(new_password)
+        user.save()
+        return Response({'message': 'Password changed successfully.'})
+
+
+# ── Admin CRUD (already class-based) ──
 
 class AuthorListCreateView(ListCreateAPIView):
     queryset         = Author.objects.all()
@@ -421,22 +490,3 @@ class LoanListCreateView(ListCreateAPIView):
 class LoanRetrieveUpdateDestroyView(RetrieveUpdateDestroyAPIView):
     queryset         = Loan.objects.all()
     serializer_class = LoanSerializer
-
-
-
-@api_view(['POST'])
-@permission_classes([IsAuthenticated])
-def change_password(request):
-    user = request.user
-    old_password = request.data.get('old_password')
-    new_password = request.data.get('new_password')
-
-    if not user.check_password(old_password):
-        return Response({'error': 'Old password is incorrect.'}, status=status.HTTP_400_BAD_REQUEST)
-
-    if not new_password or len(new_password) < 8:
-        return Response({'error': 'New password must be at least 8 characters.'}, status=status.HTTP_400_BAD_REQUEST)
-
-    user.set_password(new_password)
-    user.save()
-    return Response({'message': 'Password changed successfully.'})

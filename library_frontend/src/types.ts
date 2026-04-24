@@ -62,7 +62,11 @@ export interface Reservation {
 
 export interface AuthUser {
   token?: string;
+  access?: string;
+  refresh?: string;
   username?: string;
+  email?: string;
+  user_id?: number;
   role?: 'admin' | 'borrower' | 'superadmin';
   member_id?: number | null;
   error?: string;
@@ -102,4 +106,13 @@ export interface PendingReturn {
   member_name: string;
   return_requested_date: string;
   notes?: string;
+}
+
+export interface UserProfile {
+  name: string;
+  email: string;
+  address?: string;
+  birthday?: string;
+  age?: number;
+  contact_number?: string;
 }

@@ -8,6 +8,7 @@ import {
 import libraryIcon from '../assets/library-icon.png';
 import loanIcon    from '../assets/loan-icon.png';
 import bookIcon    from '../assets/book-icon.png';
+import { useNavigate } from 'react-router-dom';
 
 interface Props {
   username: string;
@@ -209,6 +210,7 @@ const BorrowerDashboard: React.FC<Props> = ({ username, memberId, onLogout }) =>
   const [borrowing,    setBorrowing]    = useState<number | null>(null);
   const [returning,    setReturning]    = useState<number | null>(null);
   const [reserving,    setReserving]    = useState<number | null>(null);
+  const navigate = useNavigate();
 
   const load = async () => {
     try {
@@ -301,22 +303,88 @@ const BorrowerDashboard: React.FC<Props> = ({ username, memberId, onLogout }) =>
     <div className="min-h-screen bg-[#f5f0e8]">
 
       {/* Top Nav */}
-      <nav className="bg-[#1a1209] border-b-2 border-yellow-600 px-8 py-4 flex items-center justify-between shadow-lg">
-        <div className="flex items-center gap-3">
-          <img src={libraryIcon} alt="Librium" className="w-10 h-10 object-contain" />
-          <div>
-            <div style={{ fontFamily: 'Playfair Display, serif' }} className="text-yellow-500 text-lg font-bold">Librium</div>
-            <div className="text-[#7a6a52] text-xs tracking-widest uppercase">Library Borrower Portal</div>
-          </div>
-        </div>
-        <div className="flex items-center gap-4">
-          <span className="text-[#c8bfad] text-sm">Welcome, <strong className="text-yellow-400">{username}</strong></span>
-          <button onClick={handleLogout}
-            className="px-4 py-2 text-sm text-[#c8bfad] hover:text-red-400 border border-transparent hover:border-red-900/40 hover:bg-red-900/20 rounded transition-colors">
-            Sign Out
-          </button>
-        </div>
-      </nav>
+<nav style={{
+  background: 'linear-gradient(90deg, #0f0a06, #1a1209, #0f0a06)',
+  borderBottom: '1px solid rgba(180,83,9,0.4)',
+  padding: '0 32px',
+  height: 64,
+  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+  boxShadow: '0 4px 24px rgba(0,0,0,0.4)',
+  position: 'sticky', top: 0, zIndex: 100,
+}}>
+  {/* Logo */}
+  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+    <img src={libraryIcon} alt="Librium" style={{ width: 36, height: 36, objectFit: 'contain' }} />
+    <div>
+      <div style={{ fontFamily: 'Georgia, serif', color: '#f59e0b', fontSize: 18, fontWeight: 700, lineHeight: 1 }}>
+        Librium
+      </div>
+      <div style={{ color: '#57534e', fontSize: 9, letterSpacing: 3, textTransform: 'uppercase' }}>
+        Borrower Portal
+      </div>
+    </div>
+  </div>
+
+  {/* Right side */}
+<div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+  
+  {/* Plain text — NOT clickable */}
+  <span style={{ color: '#78716c', fontSize: 13 }}>
+    Welcome, <strong style={{ color: '#d6d3d1' }}>{username}</strong>
+  </span>
+
+  {/* Profile icon — clickable */}
+  <button
+    onClick={() => navigate('/profile')}
+    title="View Profile"
+    style={{
+      width: 36, height: 36,
+      borderRadius: '50%',
+      background: 'rgba(245,158,11,0.15)',
+      border: '1.5px solid rgba(245,158,11,0.35)',
+      color: '#f59e0b',
+      fontSize: 16,
+      cursor: 'pointer',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      transition: 'all 0.2s',
+      marginLeft: 8,
+    }}
+    onMouseEnter={e => {
+      (e.currentTarget as HTMLButtonElement).style.background = 'rgba(245,158,11,0.3)';
+      (e.currentTarget as HTMLButtonElement).style.transform = 'scale(1.08)';
+    }}
+    onMouseLeave={e => {
+      (e.currentTarget as HTMLButtonElement).style.background = 'rgba(245,158,11,0.15)';
+      (e.currentTarget as HTMLButtonElement).style.transform = 'scale(1)';
+    }}
+  >
+    👤
+  </button>
+
+  {/* Sign out */}
+  <button
+    onClick={handleLogout}
+    style={{
+      padding: '7px 16px', fontSize: 12,
+      color: '#78716c', background: 'transparent',
+      border: '1px solid rgba(120,113,108,0.25)',
+      borderRadius: 8, cursor: 'pointer',
+      letterSpacing: 1, fontFamily: 'Georgia, serif',
+      transition: 'all 0.2s', marginLeft: 4,
+    }}
+    onMouseEnter={e => {
+      (e.currentTarget as HTMLButtonElement).style.color = '#f87171';
+      (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(239,68,68,0.3)';
+    }}
+    onMouseLeave={e => {
+      (e.currentTarget as HTMLButtonElement).style.color = '#78716c';
+      (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(120,113,108,0.25)';
+    }}
+  >
+    Sign Out
+  </button>
+</div>
+</nav>
 
       <div className="max-w-6xl mx-auto p-8">
 

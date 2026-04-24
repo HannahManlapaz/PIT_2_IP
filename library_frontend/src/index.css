@@ -1,6 +1,5 @@
 @tailwind base;
 @tailwind components;
-<<<<<<< Updated upstream
 @tailwind utilities;
 
 @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&family=Crimson+Text:ital,wght@0,400;0,600;1,400&display=swap');
@@ -37,6 +36,3 @@
   .bg-burgundy   { background-color: #6b1d2a; }
   .hover\:bg-burgundy-light:hover { background-color: #8c2f3f; }
 }
-=======
-@tailwind utilities;
->>>>>>> Stashed changes

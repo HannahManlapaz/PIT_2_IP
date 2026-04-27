@@ -38,10 +38,10 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 
 // Auth
 export const registerApi = (data: {
-  username: string; password: string; name: string;
+  username: string; password: string; re_password: string; name: string;  // 👈 add re_password
   email: string; contact_number: string; address: string;
 }): Promise<any> =>
-  fetch(`${BASE_URL}/auth/users/`, {
+  fetch(`${BASE_URL}/register/`, {  
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),

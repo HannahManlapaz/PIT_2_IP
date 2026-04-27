@@ -15,14 +15,7 @@ class RegisterView(APIView):
     def post(self, request):
         serializer = UserCreateSerializer(data=request.data)
         if serializer.is_valid():
-            user = User.objects.create_user(
-                email          = serializer.validated_data['email'],
-                password       = serializer.validated_data['password'],
-                username       = serializer.validated_data['username'],
-                name           = serializer.validated_data.get('name', ''),
-                contact_number = serializer.validated_data.get('contact_number', ''),
-                address        = serializer.validated_data.get('address', ''),
-            )
+            user = serializer.save() 
             from rest_framework_simplejwt.tokens import RefreshToken
             refresh = RefreshToken.for_user(user)
             return Response({

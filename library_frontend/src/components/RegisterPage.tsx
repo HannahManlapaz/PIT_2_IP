@@ -3,21 +3,25 @@ import { registerApi } from '../api';
 import libraryIcon from '../assets/library-icon.png';
 
 interface Props {
-  onLogin: (data: any) => void; // kept for prop compatibility
+  onLogin: (data: any) => void;
 }
 
 const RegisterPage: React.FC<Props> = () => {
   const [form, setForm] = useState({
-    username: '', password: '', name: '',
-    email: '', contact_number: '', address: '',
+    username: '', password: '', re_password: '',
+    name: '', email: '', contact_number: '', address: '',
   });
   const [error,   setError]   = useState('');
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async () => {
-    if (!form.username || !form.password || !form.name || !form.email || !form.contact_number || !form.address) {
+    if (!form.username || !form.password || !form.re_password || !form.name || !form.email || !form.contact_number || !form.address) {
       setError('Please fill in all fields.');
+      return;
+    }
+    if (form.password !== form.re_password) {
+      setError('Passwords do not match.');
       return;
     }
     try {
@@ -25,7 +29,6 @@ const RegisterPage: React.FC<Props> = () => {
       setError('');
       const reg = await registerApi(form);
       if (reg.email || reg.id) {
-        // Registration successful — send to login page
         setSuccess('Account created! Redirecting to login...');
         setTimeout(() => { window.location.href = '/'; }, 1500);
       } else {
@@ -151,6 +154,28 @@ const RegisterPage: React.FC<Props> = () => {
                       placeholder="Create a strong password" />
                   </div>
                   <div>
+                    {/* ── Confirm Password ── */}
+                    <label className="block text-stone-700 text-sm font-medium mb-2">Confirm Password *</label>
+                    <input
+                      type="password"
+                      value={form.re_password}
+                      onChange={(e) => setForm({ ...form, re_password: e.target.value })}
+                      placeholder="Re-enter your password"
+                      className={`w-full px-4 py-2.5 border rounded-lg bg-white/80 text-stone-800 focus:outline-none focus:ring-2 transition-all
+                        ${form.re_password === ''
+                          ? 'border-stone-200 focus:border-amber-400 focus:ring-amber-400/20'
+                          : form.password === form.re_password
+                            ? 'border-green-400 focus:border-green-400 focus:ring-green-400/20'
+                            : 'border-red-400 focus:border-red-400 focus:ring-red-400/20'
+                        }`}
+                    />
+                    {form.re_password !== '' && (
+                      <p className={`text-xs mt-1 ${form.password === form.re_password ? 'text-green-600' : 'text-red-500'}`}>
+                        {form.password === form.re_password ? '✓ Passwords match' : '✗ Passwords do not match'}
+                      </p>
+                    )}
+                  </div>
+                  <div>
                     <label className="block text-stone-700 text-sm font-medium mb-2">Email Address *</label>
                     <input type="email" value={form.email}
                       onChange={(e) => setForm({ ...form, email: e.target.value })}
@@ -164,7 +189,7 @@ const RegisterPage: React.FC<Props> = () => {
                       className="w-full px-4 py-2.5 border border-stone-200 rounded-lg bg-white/80 text-stone-800 focus:outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20 transition-all"
                       placeholder="09XX XXX XXXX" />
                   </div>
-                  <div>
+                  <div className="md:col-span-2">
                     <label className="block text-stone-700 text-sm font-medium mb-2">Address *</label>
                     <input type="text" value={form.address}
                       onChange={(e) => setForm({ ...form, address: e.target.value })}

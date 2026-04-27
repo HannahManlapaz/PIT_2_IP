@@ -8,12 +8,19 @@ class UserCreateSerializer(BaseUserCreateSerializer):
     name           = serializers.CharField(required=True)
     contact_number = serializers.CharField(required=True)
     address        = serializers.CharField(required=True)
+    re_password    = serializers.CharField(write_only=True, required=True)
 
     class Meta(BaseUserCreateSerializer.Meta):
         model  = User
-        fields = ['id', 'username', 'email', 'password', 'name', 'contact_number', 'address']
+        fields = ['id', 'username', 'email', 'password', 're_password', 'name', 'contact_number', 'address']
+
+    def validate(self, attrs):
+        if attrs['password'] != attrs['re_password']:  
+            raise serializers.ValidationError({'re_password': "Passwords do not match."})
+        return attrs
 
     def create(self, validated_data):
+        validated_data.pop('re_password', None)
         return User.objects.create_user(
             username       = validated_data['username'],
             email          = validated_data['email'],

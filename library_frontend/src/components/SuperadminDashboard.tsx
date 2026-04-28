@@ -26,7 +26,9 @@ const SuperadminDashboard: React.FC<Props> = ({ username, onLogout }) => {
   const [confirmDelete, setConfirmDelete] = useState<StaffUser | null>(null);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({
-    username: '', password: '', email: '', first_name: '', last_name: ''
+    username: '', password: '', email: '',
+    first_name: '', last_name: '',
+    name: '', contact_number: '', address: ''
   });
   const [editStaff, setEditStaff] = useState<StaffUser | null>(null);
   const [editForm, setEditForm] = useState({ first_name: '', last_name: '', email: '', password: '' });
@@ -48,7 +50,7 @@ const SuperadminDashboard: React.FC<Props> = ({ username, onLogout }) => {
       setSaving(true); setError(''); setSuccess('');
       await superadminCreateStaff(form);
       setSuccess(`Staff account "${form.username}" created successfully!`);
-      setForm({ username: '', password: '', email: '', first_name: '', last_name: '' });
+      setForm({ username: '', password: '', email: '', first_name: '', last_name: '', name: '', contact_number: '', address: '' });
       setShowForm(false);
       await load();
     } catch (e: any) {
@@ -187,6 +189,21 @@ const SuperadminDashboard: React.FC<Props> = ({ username, onLogout }) => {
                   <label style={{fontFamily:'Playfair Display, serif'}} className="block text-sm font-semibold text-[#3d2f1a] mb-1">Email</label>
                   <input type="email" className="w-full px-3 py-2 border border-[#cfc4aa] rounded bg-white focus:outline-none focus:border-[#6b1d2a] text-sm"
                     value={form.email} onChange={e => setForm({...form, email: e.target.value})} placeholder="juan@library.com" />
+                </div>
+                <div>
+                  <label style={{fontFamily:'Playfair Display, serif'}} className="block text-sm font-semibold text-[#3d2f1a] mb-1">Full Name *</label>
+                  <input className="w-full px-3 py-2 border border-[#cfc4aa] rounded bg-white focus:outline-none focus:border-[#6b1d2a] text-sm"
+                    value={form.name} onChange={e => setForm({...form, name: e.target.value})} placeholder="Juan dela Cruz" />
+                </div>
+                <div>
+                  <label style={{fontFamily:'Playfair Display, serif'}} className="block text-sm font-semibold text-[#3d2f1a] mb-1">Contact Number *</label>
+                  <input className="w-full px-3 py-2 border border-[#cfc4aa] rounded bg-white focus:outline-none focus:border-[#6b1d2a] text-sm"
+                    value={form.contact_number} onChange={e => setForm({...form, contact_number: e.target.value})} placeholder="09XXXXXXXXX" />
+                </div>
+                <div className="col-span-2">
+                  <label style={{fontFamily:'Playfair Display, serif'}} className="block text-sm font-semibold text-[#3d2f1a] mb-1">Address *</label>
+                  <input className="w-full px-3 py-2 border border-[#cfc4aa] rounded bg-white focus:outline-none focus:border-[#6b1d2a] text-sm"
+                    value={form.address} onChange={e => setForm({...form, address: e.target.value})} placeholder="123 Main St, City" />
                 </div>
               </div>
               <div className="flex gap-3 justify-end">

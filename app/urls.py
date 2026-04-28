@@ -39,5 +39,6 @@ urlpatterns = [
     path('books/<int:pk>/',   views.BookRetrieveUpdateDestroyView.as_view(),   name='book-detail'),
     path('loans/',            views.LoanListCreateView.as_view(),              name='loan-list'),
     path('loans/<int:pk>/',   views.LoanRetrieveUpdateDestroyView.as_view(),   name='loan-detail'),
+    path('members/',          views.MemberListView.as_view(),                  name='member-list'),
     path('change-password/',  views.ChangePasswordView.as_view(),              name='change-password'),
 ]

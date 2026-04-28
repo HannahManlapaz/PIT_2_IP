@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Activate Your Account</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Segoe UI', Arial, sans-serif;
+      background-color: #1a1508;
+      padding: 40px 16px;
+    }
+    .wrapper { max-width: 500px; margin: 0 auto; }
+
+    .header {
+      background: linear-gradient(135deg, #1a1508, #2d1f05, #1a1508);
+      border-radius: 16px 16px 0 0;
+      padding: 40px 32px;
+      text-align: center;
+      border: 1px solid #c9a84c30;
+      border-bottom: none;
+    }
+    .logo-box {
+      width: 80px; height: 80px;
+      background: linear-gradient(135deg, #2d1f05, #4a3210);
+      border-radius: 16px;
+      border: 2px solid #c9a84c50;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 36px;
+      margin-bottom: 16px;
+    }
+    .header h1 {
+      color: #ffffff;
+      font-size: 26px;
+      font-weight: 300;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      margin-bottom: 4px;
+    }
+    .header p {
+      color: #c9a84c;
+      font-size: 12px;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+    }
+
+    .body {
+      background: #1e1a0e;
+      padding: 40px 36px;
+      border-left: 1px solid #c9a84c30;
+      border-right: 1px solid #c9a84c30;
+    }
+    .greeting {
+      font-size: 22px;
+      font-weight: 400;
+      color: #ffffff;
+      margin-bottom: 16px;
+    }
+    .greeting span { color: #c9a84c; }
+    .body p {
+      color: #a89060;
+      font-size: 14px;
+      line-height: 1.8;
+      margin-bottom: 12px;
+    }
+    .divider {
+      border: none;
+      border-top: 1px solid #c9a84c20;
+      margin: 28px 0;
+    }
+
+    .btn-wrapper { text-align: center; margin: 32px 0; }
+    .btn {
+      display: inline-block;
+      background: linear-gradient(135deg, #c9a84c, #e8c96d, #c9a84c);
+      color: #1a1508 !important;
+      text-decoration: none;
+      padding: 16px 48px;
+      border-radius: 8px;
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+    }
+
+    .info-box {
+      background: #2d1f0520;
+      border: 1px solid #c9a84c30;
+      border-radius: 8px;
+      padding: 14px 18px;
+      margin-top: 24px;
+    }
+    .info-box p { color: #c9a84c80; font-size: 12px; margin: 0; }
+
+    .footer {
+      background: #12100a;
+      border-radius: 0 0 16px 16px;
+      padding: 24px 32px;
+      text-align: center;
+      border: 1px solid #c9a84c30;
+      border-top: none;
+    }
+    .footer p { color: #4a3e20; font-size: 12px; line-height: 1.6; }
+    .footer .dot {
+      display: inline-block;
+      width: 6px; height: 6px;
+      background: #c9a84c;
+      border-radius: 50%;
+      margin: 0 8px;
+      vertical-align: middle;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrapper">
+
+    <div class="header">
+      <div class="logo-box">🏛️</div>
+      <h1>Librium Portal</h1>
+      <p>Library Management System</p>
+    </div>
+
+    <div class="body">
+      <p class="greeting">Welcome back, <span>{{ user.username }}</span>! 👋</p>
+
+      <p>Thank you for registering at <strong style="color:#c9a84c;">Librium Portal</strong>. You're almost there!</p>
+      <p>Please click the button below to activate your account and start borrowing books.</p>
+
+      <hr class="divider">
+
+      <div class="btn-wrapper">
+        <a href="{{ url }}" class="btn">
+          Activate My Account
+        </a>
+      </div>
+
+      <hr class="divider">
+
+      <div style="display:flex; gap:12px; margin-bottom:12px;">
+        <div style="color:#c9a84c; font-size:20px;">📚</div>
+        <p style="margin:0;">Manage library collections and browse thousands of books.</p>
+      </div>
+      <div style="display:flex; gap:12px; margin-bottom:12px;">
+        <div style="color:#c9a84c; font-size:20px;">👤</div>
+        <p style="margin:0;">Oversee your account and borrowing history.</p>
+      </div>
+      <div style="display:flex; gap:12px;">
+        <div style="color:#c9a84c; font-size:20px;">🔖</div>
+        <p style="margin:0;">Browse and borrow books anytime.</p>
+      </div>
+
+      <div class="info-box">
+        <p>⚠️ If you did not create an account, you can safely ignore this email.</p>
+      </div>
+    </div>
+
+    <div class="footer">
+      <p>
+        <span class="dot"></span>
+        Secure access &nbsp;•&nbsp; Encrypted connection
+        <span class="dot"></span>
+      </p>
+      <p style="margin-top:8px; color:#2d2510;">© 2025 Librium Portal · All rights reserved</p>
+    </div>
+
+  </div>
+</body>
+</html>

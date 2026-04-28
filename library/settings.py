@@ -7,7 +7,6 @@ load_dotenv()
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# Quick-start development settings
 SECRET_KEY = 'django-insecure-0l+_k%f4!&zo%mfz!7v4$w-#uu4oxwuhb$zhf-1=xuub5+#c5v'
 DEBUG = True
 ALLOWED_HOSTS = []
@@ -44,7 +43,7 @@ ROOT_URLCONF = 'library.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [BASE_DIR / 'templates'],  
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -124,11 +123,31 @@ SIMPLE_JWT = {
     'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
 }
 
+
+# EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_PORT = 587
+EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER')
+EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD')
+EMAIL_USE_TLS = True
+DEFAULT_FROM_EMAIL = os.environ.get('EMAIL_HOST_USER')
+SERVER_EMAIL = os.environ.get('EMAIL_HOST_USER')
+
 DJOSER = {
     'LOGIN_FIELD': 'email',
     'USER_CREATE_PASSWORD_RETYPE': True,
+    'SEND_ACTIVATION_EMAIL': True,
+    'ACTIVATION_URL': 'activate/{uid}/{token}',
+    'DOMAIN': 'localhost:3000',      
+    'SITE_NAME': 'Librium Portal',     
     'SERIALIZERS': {
         'user_create': 'user.serializers.UserCreateSerializer',
+        'user_create_password_retype': 'user.serializers.UserCreateSerializer',
         'user':        'user.serializers.UserSerializer',
+    },
+    'EMAIL': {
+        'activation': 'user.email.CustomActivationEmail',
     },
 }

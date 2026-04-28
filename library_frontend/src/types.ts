@@ -115,4 +115,5 @@ export interface UserProfile {
   birthday?: string;
   age?: number;
   contact_number?: string;
+  profile_picture?: string | null;
 }

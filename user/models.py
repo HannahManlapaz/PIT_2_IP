@@ -1,5 +1,6 @@
 from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin, BaseUserManager
 from django.db import models
+from cloudinary_storage.storage import MediaCloudinaryStorage  # <-- add this
 
 
 class CustomUserManager(BaseUserManager):
@@ -25,6 +26,12 @@ class User(AbstractBaseUser, PermissionsMixin):
     contact_number = models.CharField(max_length=100, blank=True)
     address        = models.CharField(max_length=255, blank=True)
     birthday       = models.DateField(null=True, blank=True)
+    profile_picture = models.ImageField(          # <-- add this
+        upload_to='profile_pictures/',
+        blank=True,
+        null=True,
+        storage=MediaCloudinaryStorage()
+    )
     is_active      = models.BooleanField(default=True)
     is_staff       = models.BooleanField(default=False)
     date_joined    = models.DateTimeField(auto_now_add=True)

@@ -165,6 +165,7 @@ class SuperadminStaffToggleView(APIView):
 
 class BorrowerProfileView(APIView):
     permission_classes = [IsAuthenticated]
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
 
     def get(self, request):
         serializer = UserProfileSerializer(request.user)
@@ -180,7 +181,6 @@ class BorrowerProfileView(APIView):
     def delete(self, request):
         request.user.delete()
         return Response({'message': 'Account deleted successfully.'}, status=status.HTTP_204_NO_CONTENT)
-
 
 class BorrowerChangePasswordView(APIView):
     permission_classes = [IsAuthenticated]
@@ -452,7 +452,19 @@ class ChangePasswordView(APIView):
         return Response({'message': 'Password changed successfully.'})
 
 
-# ── Admin CRUD (already class-based) ──
+# ── Members ──
+
+class MemberListView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        if not (request.user.is_staff or request.user.is_superuser):
+            return Response({'error': 'Unauthorized.'}, status=status.HTTP_403_FORBIDDEN)
+        members = User.objects.filter(is_staff=False, is_superuser=False)
+        return Response(UserProfileSerializer(members, many=True).data)
+
+
+# ── Admin CRUD ──
 
 class AuthorListCreateView(ListCreateAPIView):
     queryset         = Author.objects.all()

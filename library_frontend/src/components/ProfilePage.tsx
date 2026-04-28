@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { getProfile, updateProfile, changePassword, deleteAccount } from '../api';
 import { UserProfile } from '../types';
 
@@ -12,14 +11,14 @@ const ProfilePage: React.FC<Props> = ({ onLogout }) => {
   const [error,   setError]   = useState('');
   const [success, setSuccess] = useState('');
   const [saving,  setSaving]  = useState(false);
-  const navigate = useNavigate();
 
-  // Edit form state
   const [editForm, setEditForm] = useState({
     name: '', contact_number: '', address: '', birthday: '',
   });
 
-  // Password form state
+  const [profilePic, setProfilePic] = useState<File | null>(null);
+  const [preview,    setPreview]    = useState<string | null>(null);
+
   const [passForm, setPassForm] = useState({
     old_password: '', new_password: '', confirm_password: '',
   });
@@ -39,10 +38,32 @@ const ProfilePage: React.FC<Props> = ({ onLogout }) => {
       .finally(() => setLoading(false));
   }, []);
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0] || null;
+    setProfilePic(file);
+    if (file) setPreview(URL.createObjectURL(file));
+    else setPreview(null);
+  };
+
   const handleUpdate = async () => {
     try {
       setSaving(true); setError(''); setSuccess('');
-      const updated = await updateProfile(editForm);
+
+      const formData = new FormData();
+      formData.append('name',           editForm.name);
+      formData.append('contact_number', editForm.contact_number);
+      formData.append('address',        editForm.address);
+      formData.append('birthday',       editForm.birthday);
+      if (profilePic) formData.append('profile_picture', profilePic);
+
+      const token = localStorage.getItem('token');
+      const res = await fetch('http://127.0.0.1:8000/api/borrower/profile/', {
+        method: 'PATCH',
+        headers: { 'Authorization': `Bearer ${token}` },
+        body: formData,
+      });
+
+      const updated = await res.json();
       setProfile(prev => ({ ...prev!, ...updated }));
       setSuccess('Profile updated successfully!');
       setTab('view');
@@ -125,7 +146,6 @@ const ProfilePage: React.FC<Props> = ({ onLogout }) => {
       padding: 24, position: 'relative', overflow: 'hidden',
       fontFamily: 'Georgia, serif',
     }}>
-      {/* Background orbs */}
       <div style={{
         position: 'absolute', top: '10%', left: '15%', width: 400, height: 400,
         background: 'radial-gradient(circle, rgba(180,83,9,0.12) 0%, transparent 70%)',
@@ -142,13 +162,8 @@ const ProfilePage: React.FC<Props> = ({ onLogout }) => {
         backgroundSize: '28px 28px', pointerEvents: 'none',
       }} />
 
-      {/* Card */}
       <div style={{ width: '100%', maxWidth: 480, position: 'relative', zIndex: 1 }}>
         <style>{`
-          @keyframes fadeUp {
-            from { opacity: 0; transform: translateY(24px); }
-            to   { opacity: 1; transform: translateY(0); }
-          }
           @keyframes shimmer {
             0%   { background-position: -200% center; }
             100% { background-position: 200% center; }
@@ -175,8 +190,7 @@ const ProfilePage: React.FC<Props> = ({ onLogout }) => {
             backgroundImage: 'repeating-linear-gradient(45deg, rgba(255,255,255,0.03) 0, rgba(255,255,255,0.03) 1px, transparent 1px, transparent 12px)',
           }} />
 
-          {/* Back button */}
-          <button onClick={() => navigate('/dashboard')} style={{
+          <button onClick={() => { window.location.href = '/dashboard'; }} style={{
             position: 'absolute', top: 16, left: 16,
             background: 'rgba(0,0,0,0.25)', border: '1px solid rgba(255,255,255,0.15)',
             borderRadius: 8, padding: '6px 12px', color: '#fde68a',
@@ -192,11 +206,18 @@ const ProfilePage: React.FC<Props> = ({ onLogout }) => {
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             margin: '0 auto 16px',
             boxShadow: '0 0 0 6px rgba(245,158,11,0.1), 0 8px 32px rgba(0,0,0,0.4)',
-            position: 'relative', zIndex: 1,
+            position: 'relative', zIndex: 1, overflow: 'hidden',
           }}>
-            <span style={{ fontSize: 28, fontWeight: 700, color: '#f59e0b', letterSpacing: -1 }}>
-              {initials}
-            </span>
+            {preview
+              ? <img src={preview} alt="Profile"
+                  style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} />
+              : profile?.profile_picture
+                ? <img src={profile.profile_picture} alt="Profile"
+                    style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} />
+                : <span style={{ fontSize: 28, fontWeight: 700, color: '#f59e0b', letterSpacing: -1 }}>
+                    {initials}
+                  </span>
+            }
           </div>
 
           <div style={{ position: 'relative', zIndex: 1 }}>
@@ -209,14 +230,13 @@ const ProfilePage: React.FC<Props> = ({ onLogout }) => {
           </div>
         </div>
 
-        {/* Card body */}
+        {/* Body */}
         <div style={{
           background: 'rgba(28,25,23,0.95)',
           border: '1px solid rgba(120,53,15,0.4)', borderTop: 'none',
           borderRadius: '0 0 20px 20px', padding: '24px 28px 28px',
           backdropFilter: 'blur(20px)', boxShadow: '0 32px 64px rgba(0,0,0,0.6)',
         }}>
-
           {/* Tabs */}
           <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
             {(['view', 'edit', 'password'] as const).map(t => (
@@ -230,7 +250,7 @@ const ProfilePage: React.FC<Props> = ({ onLogout }) => {
                   border: tab === t ? '1px solid rgba(245,158,11,0.4)' : '1px solid rgba(255,255,255,0.08)',
                   color: tab === t ? '#f59e0b' : '#78716c',
                 }}>
-                {t === 'view' ? '👤 Profile' : t === 'edit' ? '✏️ Edit' : '🔑 Password'}
+                {t === 'view' ? 'Profile' : t === 'edit' ? 'Edit' : 'Password'}
               </button>
             ))}
           </div>
@@ -249,7 +269,7 @@ const ProfilePage: React.FC<Props> = ({ onLogout }) => {
             }}>{success}</div>
           )}
 
-          {/* ── VIEW TAB ── */}
+          {/* View Tab */}
           {tab === 'view' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 24 }}>
               <p style={{
@@ -257,19 +277,18 @@ const ProfilePage: React.FC<Props> = ({ onLogout }) => {
                 marginBottom: 12, paddingBottom: 8, borderBottom: '1px solid rgba(120,53,15,0.25)',
               }}>PERSONAL INFORMATION</p>
               {[
-                { label: 'Full Name',      value: profile?.name,           icon: '👤' },
-                { label: 'Email Address',  value: profile?.email,          icon: '✉️' },
-                { label: 'Contact Number', value: profile?.contact_number, icon: '📞' },
-                { label: 'Home Address',   value: profile?.address,        icon: '📍' },
-                { label: 'Birthday',       value: profile?.birthday,       icon: '🎂' },
-                { label: 'Age',            value: profile?.age != null ? `${profile.age} years old` : null, icon: '⭐' },
+                { label: 'Full Name',      value: profile?.name },
+                { label: 'Email Address',  value: profile?.email },
+                { label: 'Contact Number', value: profile?.contact_number },
+                { label: 'Home Address',   value: profile?.address },
+                { label: 'Birthday',       value: profile?.birthday },
+                { label: 'Age',            value: profile?.age != null ? `${profile.age} years old` : null },
               ].map(item => (
                 <div key={item.label} className="detail-row" style={{
                   display: 'flex', alignItems: 'center',
                   padding: '10px 8px', transition: 'all 0.2s',
                   borderBottom: '1px solid rgba(255,255,255,0.04)',
                 }}>
-                  <span style={{ fontSize: 15, marginRight: 12, width: 20, textAlign: 'center' }}>{item.icon}</span>
                   <div style={{ flex: 1 }}>
                     <div style={{ color: '#78716c', fontSize: 10, letterSpacing: 1.5, marginBottom: 2 }}>
                       {item.label.toUpperCase()}
@@ -283,13 +302,43 @@ const ProfilePage: React.FC<Props> = ({ onLogout }) => {
             </div>
           )}
 
-          {/* ── EDIT TAB ── */}
+          {/* Edit Tab */}
           {tab === 'edit' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginBottom: 20 }}>
               <p style={{
                 color: '#78350f', fontSize: 10, letterSpacing: 3, fontWeight: 700,
                 marginBottom: 4, paddingBottom: 8, borderBottom: '1px solid rgba(120,53,15,0.25)',
               }}>EDIT PROFILE</p>
+
+              <div>
+                <label style={labelStyle}>PROFILE PICTURE</label>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <div style={{
+                    width: 56, height: 56, borderRadius: '50%', overflow: 'hidden',
+                    border: '2px solid rgba(245,158,11,0.3)',
+                    background: 'rgba(255,255,255,0.05)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    flexShrink: 0,
+                  }}>
+                    {preview
+                      ? <img src={preview} alt="Preview"
+                          style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      : profile?.profile_picture
+                        ? <img src={profile.profile_picture} alt="Profile"
+                            style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        : <span style={{ fontSize: 20, color: '#f59e0b' }}>👤</span>
+                    }
+                  </div>
+                  <input type="file" accept="image/*" onChange={handleFileChange}
+                    style={{
+                      flex: 1, fontSize: 12, color: '#a8a29e',
+                      background: 'rgba(255,255,255,0.03)',
+                      border: '1px solid rgba(120,53,15,0.4)',
+                      borderRadius: 8, padding: '8px 10px',
+                    }}
+                  />
+                </div>
+              </div>
 
               <div>
                 <label style={labelStyle}>FULL NAME</label>
@@ -315,7 +364,6 @@ const ProfilePage: React.FC<Props> = ({ onLogout }) => {
                   value={editForm.birthday}
                   onChange={e => setEditForm(p => ({ ...p, birthday: e.target.value }))} />
               </div>
-
               <button className="btn-primary" onClick={handleUpdate} disabled={saving}
                 style={{
                   width: '100%', padding: '12px 0', marginTop: 4,
@@ -324,19 +372,18 @@ const ProfilePage: React.FC<Props> = ({ onLogout }) => {
                   fontFamily: 'Georgia, serif', letterSpacing: 1,
                   cursor: saving ? 'not-allowed' : 'pointer', transition: 'all 0.2s',
                 }}>
-                {saving ? 'Saving…' : '💾 Save Changes'}
+                {saving ? 'Saving…' : 'Save Changes'}
               </button>
             </div>
           )}
 
-          {/* ── PASSWORD TAB ── */}
+          {/* Password Tab */}
           {tab === 'password' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginBottom: 20 }}>
               <p style={{
                 color: '#78350f', fontSize: 10, letterSpacing: 3, fontWeight: 700,
                 marginBottom: 4, paddingBottom: 8, borderBottom: '1px solid rgba(120,53,15,0.25)',
               }}>CHANGE PASSWORD</p>
-
               <div>
                 <label style={labelStyle}>CURRENT PASSWORD</label>
                 <input className="profile-input" type="password" style={inputStyle}
@@ -355,7 +402,6 @@ const ProfilePage: React.FC<Props> = ({ onLogout }) => {
                   value={passForm.confirm_password} placeholder="Repeat new password"
                   onChange={e => setPassForm(p => ({ ...p, confirm_password: e.target.value }))} />
               </div>
-
               <button className="btn-primary" onClick={handleChangePassword} disabled={saving}
                 style={{
                   width: '100%', padding: '12px 0', marginTop: 4,
@@ -364,14 +410,14 @@ const ProfilePage: React.FC<Props> = ({ onLogout }) => {
                   fontFamily: 'Georgia, serif', letterSpacing: 1,
                   cursor: saving ? 'not-allowed' : 'pointer', transition: 'all 0.2s',
                 }}>
-                {saving ? 'Saving…' : '🔑 Change Password'}
+                {saving ? 'Saving…' : 'Change Password'}
               </button>
             </div>
           )}
 
-          {/* Bottom buttons */}
+          {/* Action Buttons */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            <button className="btn-primary" onClick={() => navigate('/dashboard')}
+            <button className="btn-primary" onClick={() => { window.location.href = '/dashboard'; }}
               style={{
                 width: '100%', padding: '12px 0',
                 background: 'rgba(245,158,11,0.12)', border: '1px solid rgba(245,158,11,0.3)',
@@ -399,10 +445,9 @@ const ProfilePage: React.FC<Props> = ({ onLogout }) => {
                 fontFamily: 'Georgia, serif', letterSpacing: 1,
                 cursor: 'pointer', transition: 'all 0.2s',
               }}>
-              🗑️ Delete Account
+              Delete Account
             </button>
           </div>
-
         </div>
       </div>
     </div>

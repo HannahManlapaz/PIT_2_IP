@@ -9,22 +9,20 @@ from datetime import date
 User = get_user_model()
 
 
+from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
+
 class RegisterView(APIView):
     permission_classes = [AllowAny]
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
 
     def post(self, request):
-        serializer = UserCreateSerializer(data=request.data)
+        serializer = UserCreateSerializer(data=request.data, context={'request': request})
         if serializer.is_valid():
-            user = serializer.save() 
-            from rest_framework_simplejwt.tokens import RefreshToken
-            refresh = RefreshToken.for_user(user)
-            return Response({
-                'access':   str(refresh.access_token),
-                'refresh':  str(refresh),
-                'username': user.username,
-                'role':     'borrower',
-                'user_id':  user.id,
-            }, status=status.HTTP_201_CREATED)
+            serializer.save()
+            return Response(
+                {'message': 'Account created! Please check your email to activate your account.'},
+                status=status.HTTP_201_CREATED
+            )
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 

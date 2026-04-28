@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { registerApi } from '../api';
 import libraryIcon from '../assets/library-icon.png';
 
 interface Props {
@@ -11,10 +10,21 @@ const RegisterPage: React.FC<Props> = () => {
     username: '', password: '', re_password: '',
     name: '', email: '', contact_number: '', address: '',
   });
-  const [error,   setError]   = useState('');
-  const [success, setSuccess] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [profilePic, setProfilePic] = useState<File | null>(null);  
+  const [preview,    setPreview]    = useState<string | null>(null); 
+  const [error,      setError]      = useState('');
+  const [success,    setSuccess]    = useState('');
+  const [loading,    setLoading]    = useState(false);
 
+  
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0] || null;
+    setProfilePic(file);
+    if (file) setPreview(URL.createObjectURL(file));
+    else setPreview(null);
+  };
+
+  
   const handleSubmit = async () => {
     if (!form.username || !form.password || !form.re_password || !form.name || !form.email || !form.contact_number || !form.address) {
       setError('Please fill in all fields.');
@@ -27,10 +37,26 @@ const RegisterPage: React.FC<Props> = () => {
     try {
       setLoading(true);
       setError('');
-      const reg = await registerApi(form);
-      if (reg.email || reg.id) {
-        setSuccess('Account created! Redirecting to login...');
-        setTimeout(() => { window.location.href = '/'; }, 1500);
+
+      const formData = new FormData();
+      formData.append('username',       form.username);
+      formData.append('email',          form.email);
+      formData.append('password',       form.password);
+      formData.append('re_password',    form.re_password);
+      formData.append('name',           form.name);
+      formData.append('contact_number', form.contact_number);
+      formData.append('address',        form.address);
+      if (profilePic) formData.append('profile_picture', profilePic);
+
+      const res = await fetch('http://127.0.0.1:8000/api/users/register/', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const reg = await res.json();
+
+      if (res.ok) {
+        setSuccess('Account created! Please check your email to activate your account.');
       } else {
         const errs = Object.values(reg).flat().join(' ');
         setError(errs || 'Registration failed.');
@@ -132,6 +158,25 @@ const RegisterPage: React.FC<Props> = () => {
 
               <form onSubmit={(e) => { e.preventDefault(); handleSubmit(); }} className="space-y-5">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+
+                  {/* -- ADD: Profile Picture Upload -- */}
+                  <div className="md:col-span-2 flex items-center gap-5">
+                    <div className="w-20 h-20 rounded-full border-2 border-stone-200 overflow-hidden bg-stone-100 flex items-center justify-center flex-shrink-0">
+                      {preview
+                        ? <img src={preview} alt="Preview" className="w-full h-full object-cover" />
+                        : <span className="text-stone-400 text-3xl">👤</span>
+                      }
+                    </div>
+                    <div className="flex-1">
+                      <label className="block text-stone-700 text-sm font-medium mb-2">Profile Picture (optional)</label>
+                      <input type="file" accept="image/*" onChange={handleFileChange}
+                        className="w-full px-4 py-2 border border-stone-200 rounded-lg bg-white/80 text-stone-800 text-sm
+                          file:mr-3 file:py-1 file:px-3 file:rounded-md file:border-0
+                          file:bg-amber-50 file:text-amber-700 file:font-medium
+                          hover:file:bg-amber-100 transition-all" />
+                    </div>
+                  </div>
+
                   <div>
                     <label className="block text-stone-700 text-sm font-medium mb-2">Full Name *</label>
                     <input type="text" value={form.name}
@@ -154,11 +199,8 @@ const RegisterPage: React.FC<Props> = () => {
                       placeholder="Create a strong password" />
                   </div>
                   <div>
-                    {/* ── Confirm Password ── */}
                     <label className="block text-stone-700 text-sm font-medium mb-2">Confirm Password *</label>
-                    <input
-                      type="password"
-                      value={form.re_password}
+                    <input type="password" value={form.re_password}
                       onChange={(e) => setForm({ ...form, re_password: e.target.value })}
                       placeholder="Re-enter your password"
                       className={`w-full px-4 py-2.5 border rounded-lg bg-white/80 text-stone-800 focus:outline-none focus:ring-2 transition-all

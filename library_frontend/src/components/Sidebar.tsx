@@ -22,7 +22,6 @@ interface Props {
 }
 
 const Sidebar: React.FC<Props> = ({ username, onLogout }) => {
-
   const handleLogout = async () => {
     try { await logoutApi(); } catch {}
     onLogout();
@@ -60,7 +59,6 @@ const Sidebar: React.FC<Props> = ({ username, onLogout }) => {
         ))}
       </nav>
 
-      {/* User info + logout */}
       <div className="px-4 py-4 border-t border-yellow-900/30">
         <div className="flex items-center gap-3 mb-3 px-2">
           <div className="w-8 h-8 rounded-full bg-[#6b1d2a] flex items-center justify-center text-yellow-400 font-bold text-sm flex-shrink-0">

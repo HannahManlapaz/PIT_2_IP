@@ -48,7 +48,7 @@ const RegisterPage: React.FC<Props> = () => {
       formData.append('address',        form.address);
       if (profilePic) formData.append('profile_picture', profilePic);
 
-      const res = await fetch('http://127.0.0.1:8000/api/users/register/', {
+      const res = await fetch('http://127.0.0.1:8000/api/auth/users/', {
         method: 'POST',
         body: formData,
       });

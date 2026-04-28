@@ -285,11 +285,11 @@ const LoanTable: React.FC = () => {
                           ▼
                         </span>
                         <div className="w-7 h-7 rounded-full bg-[#6b1d2a] text-white flex items-center justify-center text-xs font-bold flex-shrink-0">
-                          {memberName(memberId).charAt(0).toUpperCase()}
+                          {(memberLoans[0].member_name ?? memberName(memberId)).charAt(0).toUpperCase()}
                         </div>
                         <span style={{ fontFamily: 'Playfair Display, serif' }}
                           className="font-semibold text-[#1a1209] text-sm">
-                          {memberName(memberId)}
+                          {memberLoans[0].member_name ?? memberName(memberId)}
                         </span>
                         <span className="text-xs text-[#7a6a52] italic">
                           {memberLoans.length} loan{memberLoans.length !== 1 ? 's' : ''}

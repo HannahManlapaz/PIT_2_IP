@@ -14,6 +14,7 @@ const navItems = [
   { to: '/authors', icon: authorIcon,  label: 'Authors'   },
   { to: '/members', icon: memberIcon,  label: 'Members'   },
   { to: '/loans',   icon: loanIcon,    label: 'Loans'     },
+  { to: '/profile', icon: libraryIcon, label: 'Profile'   },
 ];
 
 interface Props {

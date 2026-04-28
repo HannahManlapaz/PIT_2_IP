@@ -90,32 +90,23 @@ const App: React.FC = () => {
     );
   }
 
-  // Admin / Staff
-  if (window.location.pathname === '/' || window.location.pathname === '') {
-    window.location.replace('/profile');
-    return null;
-  }
-
+  // Staff / Admin role (librarian)
   return (
     <Router>
-      <Routes>
-        <Route path="/profile" element={<ProfilePage onLogout={handleLogout} />} />
-        <Route path="/*" element={
-          <div className="flex min-h-screen bg-[#f5f0e8]">
-            <Sidebar username={username} onLogout={handleLogout} />
-            <main className="flex-1 ml-64 p-10 min-h-screen">
-              <Routes>
-                <Route path="/"        element={<StaffDashboard />} />
-                <Route path="/books"   element={<BookTable />} />
-                <Route path="/authors" element={<AuthorTable />} />
-                <Route path="/members" element={<MemberTable />} />
-                <Route path="/loans"   element={<LoanTable />} />
-                <Route path="*"        element={<Navigate to="/" replace />} />
-              </Routes>
-            </main>
-          </div>
-        } />
-      </Routes>
+      <div className="flex min-h-screen bg-[#f5f0e8]">
+        <Sidebar username={username} onLogout={handleLogout} />
+        <main className="flex-1 ml-64 p-10 min-h-screen">
+          <Routes>
+            <Route path="/"        element={<StaffDashboard />} />
+            <Route path="/books"   element={<BookTable />} />
+            <Route path="/authors" element={<AuthorTable />} />
+            <Route path="/members" element={<MemberTable />} />
+            <Route path="/loans"   element={<LoanTable />} />
+            <Route path="/profile" element={<ProfilePage onLogout={handleLogout} />} />
+            <Route path="*"        element={<Navigate to="/" replace />} />
+          </Routes>
+        </main>
+      </div>
     </Router>
   );
 };

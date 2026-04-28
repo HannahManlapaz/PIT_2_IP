@@ -7,31 +7,36 @@ interface Props { onLogout: () => void; }
 const ProfilePage: React.FC<Props> = ({ onLogout }) => {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
-  const [tab,     setTab]     = useState<'view' | 'edit' | 'password'>('view');
-  const [error,   setError]   = useState('');
+  const [tab, setTab] = useState<'view' | 'edit' | 'password'>('view');
+  const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-  const [saving,  setSaving]  = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [role, setRole] = useState<string>('');
 
   const [editForm, setEditForm] = useState({
     name: '', contact_number: '', address: '', birthday: '',
   });
 
   const [profilePic, setProfilePic] = useState<File | null>(null);
-  const [preview,    setPreview]    = useState<string | null>(null);
+  const [preview, setPreview] = useState<string | null>(null);
 
   const [passForm, setPassForm] = useState({
     old_password: '', new_password: '', confirm_password: '',
   });
 
   useEffect(() => {
+    // Get user role from localStorage
+    const userRole = localStorage.getItem('role') || '';
+    setRole(userRole);
+    
     getProfile()
       .then((data: UserProfile) => {
         setProfile(data);
         setEditForm({
-          name:           data.name           ?? '',
+          name: data.name ?? '',
           contact_number: data.contact_number ?? '',
-          address:        data.address        ?? '',
-          birthday:       data.birthday       ?? '',
+          address: data.address ?? '',
+          birthday: data.birthday ?? '',
         });
       })
       .catch((err: unknown) => console.error(err))
@@ -50,10 +55,10 @@ const ProfilePage: React.FC<Props> = ({ onLogout }) => {
       setSaving(true); setError(''); setSuccess('');
 
       const formData = new FormData();
-      formData.append('name',           editForm.name);
+      formData.append('name', editForm.name);
       formData.append('contact_number', editForm.contact_number);
-      formData.append('address',        editForm.address);
-      formData.append('birthday',       editForm.birthday);
+      formData.append('address', editForm.address);
+      formData.append('birthday', editForm.birthday);
       if (profilePic) formData.append('profile_picture', profilePic);
 
       const token = localStorage.getItem('token');
@@ -104,6 +109,18 @@ const ProfilePage: React.FC<Props> = ({ onLogout }) => {
     } catch {
       setError('Failed to delete account.');
     }
+  };
+
+  const getDashboardLink = () => {
+    if (role === 'staff') return '/';
+    if (role === 'superadmin') return '/';
+    return '/dashboard';
+  };
+
+  const getRoleTitle = () => {
+    if (role === 'staff') return 'LIBRARY STAFF';
+    if (role === 'superadmin') return 'SYSTEM ADMINISTRATOR';
+    return 'LIBRARY MEMBER';
   };
 
   if (loading) return (
@@ -190,7 +207,7 @@ const ProfilePage: React.FC<Props> = ({ onLogout }) => {
             backgroundImage: 'repeating-linear-gradient(45deg, rgba(255,255,255,0.03) 0, rgba(255,255,255,0.03) 1px, transparent 1px, transparent 12px)',
           }} />
 
-          <button onClick={() => { window.location.href = '/dashboard'; }} style={{
+          <button onClick={() => { window.location.href = getDashboardLink(); }} style={{
             position: 'absolute', top: 16, left: 16,
             background: 'rgba(0,0,0,0.25)', border: '1px solid rgba(255,255,255,0.15)',
             borderRadius: 8, padding: '6px 12px', color: '#fde68a',
@@ -222,15 +239,15 @@ const ProfilePage: React.FC<Props> = ({ onLogout }) => {
 
           <div style={{ position: 'relative', zIndex: 1 }}>
             <h1 style={{ color: '#fff', fontSize: 22, fontWeight: 600, margin: '0 0 4px', letterSpacing: 0.5 }}>
-              {profile?.name || 'Library Member'}
+              {profile?.name || 'Library User'}
             </h1>
             <p style={{ color: 'rgba(253,230,138,0.7)', fontSize: 12, letterSpacing: 2, margin: 0 }}>
-              LIBRARY MEMBER
+              {getRoleTitle()}
             </p>
           </div>
         </div>
 
-        {/* Body */}
+        {/* Body (same as before - no changes needed) */}
         <div style={{
           background: 'rgba(28,25,23,0.95)',
           border: '1px solid rgba(120,53,15,0.4)', borderTop: 'none',
@@ -417,7 +434,7 @@ const ProfilePage: React.FC<Props> = ({ onLogout }) => {
 
           {/* Action Buttons */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            <button className="btn-primary" onClick={() => { window.location.href = '/dashboard'; }}
+            <button className="btn-primary" onClick={() => { window.location.href = getDashboardLink(); }}
               style={{
                 width: '100%', padding: '12px 0',
                 background: 'rgba(245,158,11,0.12)', border: '1px solid rgba(245,158,11,0.3)',

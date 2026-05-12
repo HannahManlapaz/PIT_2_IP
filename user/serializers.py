@@ -58,10 +58,10 @@ class UserProfileSerializer(serializers.ModelSerializer):
 
     class Meta:
         model  = User
-        fields = ['name', 'email', 'contact_number', 'address',
+        fields = ['id', 'name', 'email', 'contact_number', 'address',  # ✅ add 'id' here
                   'birthday', 'age', 'profile_picture']
         read_only_fields = ['email']
-
+        
     def get_age(self, obj):
         if not obj.birthday:
             return None

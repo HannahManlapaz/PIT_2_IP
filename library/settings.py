@@ -5,7 +5,7 @@ from datetime import timedelta
 
 load_dotenv()
 
-BASE_DIR = Path(__file__).resolve().parent.parent  # Fixed: __file__ not _file_
+BASE_DIR = Path(__file__).resolve().parent.parent
 
 SECRET_KEY = 'django-insecure-0l+_k%f4!&zo%mfz!7v4$w-#uu4oxwuhb$zhf-1=xuub5+#c5v'
 DEBUG = True
@@ -16,6 +16,8 @@ ALLOWED_HOSTS = ['localhost', '127.0.0.1', 'pit-2-ip.onrender.com']
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
+    "http://localhost:8081", 
+    "http://127.0.0.1:8081", 
     "https://pit-2-ip.onrender.com",
 ]
 
@@ -43,7 +45,7 @@ MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
-    'django.middleware.csrf.CsrfViewMiddleware',
+    # 'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',

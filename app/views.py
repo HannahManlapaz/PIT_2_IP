@@ -463,6 +463,45 @@ class MemberListView(APIView):
         members = User.objects.filter(is_staff=False, is_superuser=False)
         return Response(UserProfileSerializer(members, many=True).data)
 
+    def post(self, request):
+        if not (request.user.is_staff or request.user.is_superuser):
+            return Response({'error': 'Unauthorized.'}, status=status.HTTP_403_FORBIDDEN)
+        serializer = UserProfileSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+class MemberDetailView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get_object(self, pk):
+        try:
+            return User.objects.get(pk=pk, is_staff=False, is_superuser=False)
+        except User.DoesNotExist:
+            return None
+
+    def put(self, request, pk):
+        if not (request.user.is_staff or request.user.is_superuser):
+            return Response({'error': 'Unauthorized.'}, status=status.HTTP_403_FORBIDDEN)
+        user = self.get_object(pk)
+        if not user:
+            return Response({'error': 'Member not found.'}, status=status.HTTP_404_NOT_FOUND)
+        serializer = UserProfileSerializer(user, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def delete(self, request, pk):
+        if not (request.user.is_staff or request.user.is_superuser):
+            return Response({'error': 'Unauthorized.'}, status=status.HTTP_403_FORBIDDEN)
+        user = self.get_object(pk)
+        if not user:
+            return Response({'error': 'Member not found.'}, status=status.HTTP_404_NOT_FOUND)
+        user.delete()
+        return Response({'message': 'Member deleted.'}, status=status.HTTP_204_NO_CONTENT)
+
 
 # ── Admin CRUD ──
 

@@ -9,12 +9,14 @@ BASE_DIR = Path(__file__).resolve().parent.parent  # Fixed: __file__ not _file_
 
 SECRET_KEY = 'django-insecure-0l+_k%f4!&zo%mfz!7v4$w-#uu4oxwuhb$zhf-1=xuub5+#c5v'
 DEBUG = True
-ALLOWED_HOSTS = ['localhost', '127.0.0.1', 'http://localhost:3000']
+ALLOWED_HOSTS = ['localhost', '127.0.0.1', 'pit-2-ip.onrender.com']
+
 
 # CORS Settings
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
+    "https://pit-2-ip.onrender.com",
 ]
 
 CORS_ALLOW_CREDENTIALS = True
@@ -142,7 +144,7 @@ DJOSER = {
     'USER_CREATE_PASSWORD_RETYPE': True,
     'SEND_ACTIVATION_EMAIL': True,
     'ACTIVATION_URL': 'activate/{uid}/{token}',
-    'DOMAIN': 'localhost:3000',      
+    'DOMAIN': 'pit-2-ip.onrender.com',      
     'SITE_NAME': 'Librium Portal',     
     'SERIALIZERS': {
         'user_create': 'user.serializers.UserCreateSerializer',

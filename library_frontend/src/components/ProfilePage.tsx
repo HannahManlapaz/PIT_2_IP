@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { getProfile, updateProfile, changePassword, deleteAccount } from '../api';
+import { getProfile, changePassword, deleteAccount } from '../api';
 import { UserProfile } from '../types';
 
 interface Props { onLogout: () => void; }

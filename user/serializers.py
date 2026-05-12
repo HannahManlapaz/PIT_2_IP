@@ -37,10 +37,16 @@ class UserCreateSerializer(BaseUserCreateSerializer):
         user.is_active = False
         user.save()
 
-        # Send activation email
+        # Send activation email in background thread so it doesn't block the request
+        import threading
         request = self.context.get('request')
         from user.email import CustomActivationEmail
-        CustomActivationEmail(request, {'user': user}).send([user.email])
+        def send_email():
+            try:
+                CustomActivationEmail(request, {'user': user}).send([user.email])
+            except Exception as e:
+                print(f"Email send failed: {e}")
+        threading.Thread(target=send_email, daemon=True).start()
 
         return user
 

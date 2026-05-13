@@ -438,6 +438,10 @@ class AdminVerifyReturnView(APIView):
             loan.book.available = False
             loan.book.save()
 
+        return Response({
+            'message': f'Return verified for "{loan.book.title}" by {loan.member.name}',
+            'loan': LoanSerializer(loan).data
+        })
 
 class AdminRejectReturnView(APIView):
     permission_classes = [IsAuthenticated]

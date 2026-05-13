@@ -396,7 +396,7 @@ class AdminPendingReturnsView(APIView):
             return_requested_date__isnull=False,
             return_verified_date__isnull=True,
             return_status='pending'
-        ).select_related('member', 'book').order_by('return_requested_date')
+        ).select_related('member', 'book').order_by('-return_requested_date')
         return Response(LoanSerializer(loans, many=True).data)
 
 
@@ -579,8 +579,9 @@ class BookRetrieveUpdateDestroyView(RetrieveUpdateDestroyAPIView):
         return {'request': self.request}
 
 
+
 class LoanListCreateView(ListCreateAPIView):
-    queryset         = Loan.objects.all()
+    queryset = Loan.objects.all().order_by('-loan_date')
     serializer_class = LoanSerializer
 
 
@@ -698,7 +699,8 @@ class AdminLoansBySemesterView(APIView):
         if not request.user.is_staff:
             return Response({'error': 'Unauthorized.'}, status=status.HTTP_403_FORBIDDEN)
         semester_id = request.query_params.get('semester')
-        loans       = Loan.objects.select_related('member', 'book', 'semester').all()
+        loans = Loan.objects.select_related('member', 'book', 'semester') \
+            .all().order_by('-loan_date')
         if semester_id:
             loans = loans.filter(semester_id=semester_id)
         return Response(LoanSerializer(loans, many=True).data)

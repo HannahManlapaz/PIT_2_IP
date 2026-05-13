@@ -1,9 +1,9 @@
 // app/admin/index.jsx
 import { useEffect, useState } from "react";
-import {
-  View, Text, ScrollView, TouchableOpacity,
-  ActivityIndicator, StyleSheet, Platform,
-} from "react-native";
+import { useFocusEffect } from "expo-router";
+import { useCallback } from "react";
+
+import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, StyleSheet, Platform, } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { router } from "expo-router";
 import { getBooks, getAuthors, getMembers, getLoans, logoutApi } from "../../lib/api";
@@ -20,21 +20,36 @@ export default function StaffDashboard() {
   const [username, setUsername] = useState("");
   
 
+  const loadDashboard = async () => {
+    try {
+      const [b, a, m, l] = await Promise.all([
+        getBooks(), getAuthors(), getMembers(), getLoans()
+      ]);
+      setBooks(Array.isArray(b) ? b : []);
+      setAuthors(Array.isArray(a) ? a : []);
+      setMembers(Array.isArray(m) ? m : []);
+      setLoans(Array.isArray(l) ? l : []);
+    } catch (err) {
+      console.error("Dashboard error:", err);
+      setError(err?.message || "Failed to load dashboard data.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  
+  // first load
   useEffect(() => {
     AsyncStorage.getItem("username").then(u => setUsername(u || "Librarian"));
-    Promise.all([getBooks(), getAuthors(), getMembers(), getLoans()])
-      .then(([b, a, m, l]) => {
-        setBooks(Array.isArray(b) ? b : []);
-        setAuthors(Array.isArray(a) ? a : []);
-        setMembers(Array.isArray(m) ? m : []);
-        setLoans(Array.isArray(l) ? l : []);
-      })
-      .catch((err) => {
-        console.error("Dashboard error:", err);
-        setError(err?.message || "Failed to load dashboard data.");
-      })
-      .finally(() => setLoading(false));
+    loadDashboard();
   }, []);
+
+  //refetch when screen is focused
+  useFocusEffect(
+    useCallback(() => {
+      loadDashboard();
+    }, [])
+  );
 
   const handleLogout = async () => {
     try { await logoutApi(); } catch {}

@@ -175,7 +175,8 @@ const LoanTable = () => {
     .filter(l =>
       memberName(l.member).toLowerCase().includes(search.toLowerCase()) ||
       bookTitle(l.book).toLowerCase().includes(search.toLowerCase())
-    );
+    )
+    .sort((a, b) => new Date(b.loan_date) - new Date(a.loan_date));
 
   // ── Handlers ────────────────────────────────────────────────────────────────
   const openCreate = () => { setForm(emptyLoan()); setEditing(null); setError(''); setShowForm(true); };

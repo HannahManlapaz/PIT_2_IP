@@ -93,6 +93,8 @@ class Loan(models.Model):
         related_name='verified_returns'
     )
     notes = models.TextField(blank=True, null=True)
+    class Meta:
+        ordering = ['-loan_date']  
 
     def save(self, *args, **kwargs):
         if self.loan_date and not self.pk:
@@ -110,12 +112,15 @@ class Loan(models.Model):
                 if matched:
                     self.semester = matched
 
+        
         if self.book_id:
             book = Book.objects.get(pk=self.book_id)
-            
-        if self.return_verified_date:
-            book.available = True
-        book.save(update_fields=['available'])
+
+            if self.return_verified_date:
+                book.available = True
+
+            book.save(update_fields=['available'])
+
 
         super().save(*args, **kwargs)
 

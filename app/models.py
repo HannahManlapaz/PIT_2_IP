@@ -112,8 +112,10 @@ class Loan(models.Model):
 
         if self.book_id:
             book = Book.objects.get(pk=self.book_id)
-            book.available = bool(self.return_verified_date)
-            book.save(update_fields=['available'])
+            
+        if self.return_verified_date:
+            book.available = True
+        book.save(update_fields=['available'])
 
         super().save(*args, **kwargs)
 
@@ -145,16 +147,27 @@ class Reservation(models.Model):
         ('fulfilled', 'Fulfilled'),
     ]
 
-    member         = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='reservations')
-    book           = models.ForeignKey(Book, on_delete=models.CASCADE, related_name='reservations')
+    member         = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='reservations'
+    )
+    book           = models.ForeignKey(
+        Book,
+        on_delete=models.CASCADE,
+        related_name='reservations'
+    )
     reserved_date  = models.DateField(auto_now_add=True)
-    status         = models.CharField(max_length=20, choices=STATUS_CHOICES, default='waiting')
+    status         = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default='waiting'
+    )
     notified_date  = models.DateField(null=True, blank=True)
     queue_position = models.PositiveIntegerField(default=1)
 
     class Meta:
-        unique_together = ('member', 'book', 'status')
-        ordering        = ['reserved_date']
+        ordering = ['reserved_date']   
 
     def __str__(self):
         return f"{self.member.name} reserved {self.book.title} - {self.get_status_display()}"

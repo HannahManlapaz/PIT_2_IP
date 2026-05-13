@@ -63,10 +63,10 @@ export const createBook = (data) => {
   fd.append("isbn", data.isbn);
   fd.append("publication_year", String(data.publication_year));
   fd.append("author", String(data.author));
-  fd.append("available", String(data.available));
+  fd.append("available", data.available ? "1" : "0");
   fd.append("description", data.description ?? "");
-  if (data.category)   fd.append("category",   String(data.category));   
-  if (data.department) fd.append("department",  String(data.department)); 
+  if (data.category != null)   fd.append("category",   String(data.category));
+  if (data.department != null) fd.append("department",  String(data.department));
   if (data.cover_image) {
     fd.append("cover_image", {
       uri: data.cover_image.uri,
@@ -86,17 +86,19 @@ export const updateBook = (id, data) => {
   fd.append("isbn", data.isbn);
   fd.append("publication_year", String(data.publication_year));
   fd.append("author", String(data.author));
-  fd.append("available", String(data.available));
+  fd.append("available", data.available ? "1" : "0");
   fd.append("description", data.description ?? "");
-  if (data.category)   fd.append("category",   String(data.category));   
-  if (data.department) fd.append("department",  String(data.department)); 
-  if (data.cover_image) {
+  if (data.category != null)   fd.append("category",   String(data.category));
+  if (data.department != null) fd.append("department",  String(data.department));
+
+  if (data.cover_image && typeof data.cover_image === 'object' && data.cover_image.uri) {
     fd.append("cover_image", {
-      uri: data.cover_image.uri,
+      uri:  data.cover_image.uri,
       name: data.cover_image.name ?? "cover.jpg",
       type: data.cover_image.type ?? "image/jpeg",
     });
   }
+
   return api.patch(`/books/${id}/`, fd, {
     headers: { "Content-Type": "multipart/form-data" },
   }).then((r) => r.data);

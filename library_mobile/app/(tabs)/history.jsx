@@ -4,6 +4,7 @@ import {
   StyleSheet, StatusBar, TouchableOpacity,
 } from "react-native";
 import { useState, useEffect, useCallback } from "react";
+import { useFocusEffect } from "expo-router";
 import { useFonts } from "expo-font";
 import { Feather } from "@expo/vector-icons";
 import { borrowerHistory, borrowerReturnRequest } from "../../lib/api";
@@ -62,16 +63,22 @@ export default function HistoryScreen() {
   const [error,     setError]     = useState("");
   const [success,   setSuccess]   = useState("");
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (silent = false) => {
     try {
-      setLoading(true);
+      if (!silent) setLoading(true); // ✅ only show spinner on first load
       const data = await borrowerHistory();
       setHistory(Array.isArray(data) ? data : []);
     } catch { setError("Failed to load history."); }
     finally { setLoading(false); }
   }, []);
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); }, [])
+
+  useFocusEffect(
+    useCallback(() => {
+      load(true); 
+    }, [])
+  );
 
   useEffect(() => {
     if (error || success) {

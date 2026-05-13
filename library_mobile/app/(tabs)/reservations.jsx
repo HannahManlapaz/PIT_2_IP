@@ -4,6 +4,7 @@ import {
   StyleSheet, StatusBar,
 } from "react-native";
 import { useState, useEffect, useCallback } from "react";
+import { useFocusEffect } from "expo-router";
 import { useFonts } from "expo-font";
 import { Feather } from "@expo/vector-icons";
 import {
@@ -64,9 +65,9 @@ export default function ReservationsScreen() {
   const [error,        setError]        = useState("");
   const [success,      setSuccess]      = useState("");
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (silent = false) => {
     try {
-      setLoading(true);
+      if (!silent) setLoading(true);
       const [r, b] = await Promise.all([borrowerMyReservations(), borrowerGetBooks()]);
       const resArr = Array.isArray(r) ? r : [];
       const bkArr  = Array.isArray(b) ? b : [];
@@ -77,6 +78,12 @@ export default function ReservationsScreen() {
   }, []);
 
   useEffect(() => { load(); }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      load(true);
+    }, [])
+  );
 
   useEffect(() => {
     if (error || success) {

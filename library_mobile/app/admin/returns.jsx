@@ -2,7 +2,8 @@
  * AdminReturnVerification → returns.jsx
  * Save at: app/admin/returns.jsx
  */
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
+import { useFocusEffect } from 'expo-router';
 import {
   View,
   Text,
@@ -36,6 +37,7 @@ const C = {
 export default function ReturnsScreen() {
   const [pendingReturns, setPendingReturns] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing,   setRefreshing]   = useState(false);
 
   // Verify modal
   const [verifyingLoan, setVerifyingLoan] = useState(null);
@@ -47,7 +49,9 @@ export default function ReturnsScreen() {
 
   const [actionLoading, setActionLoading] = useState(false);
 
-  const loadPendingReturns = async () => {
+  const loadPendingReturns = async (silent = false) => {
+    if (silent) setRefreshing(true);  // ✅ silent = background refresh
+    else setLoading(true);
     try {
       const data = await getPendingReturns();
       setPendingReturns(Array.isArray(data) ? data : []);
@@ -55,11 +59,17 @@ export default function ReturnsScreen() {
       console.error('Failed to load pending returns:', error);
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
-  };
+};
 
   useEffect(() => { loadPendingReturns(); }, []);
 
+  useFocusEffect(
+  useCallback(() => {
+    loadPendingReturns(true); 
+  }, [])
+)
   const handleVerify = async () => {
     if (!verifyingLoan) return;
     setActionLoading(true);

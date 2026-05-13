@@ -1,5 +1,6 @@
 // app/admin/loans.jsx
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
+import { useFocusEffect } from "expo-router";
 import {
   View, Text, TextInput, TouchableOpacity, FlatList,
   ActivityIndicator, StyleSheet, ScrollView, Modal,
@@ -49,14 +50,6 @@ const C = {
 };
 
 const today = () => new Date().toISOString().split('T')[0];
-const emptyLoan = () => {
-  const activeSem = semesters.find(s => s.is_active);
-  return {
-    member: 0, book: 0, loan_date: today(),
-    due_date: null, return_date: null,
-    semester: activeSem?.id ?? null,
-  };
-};
 
 const FEE_PER_DAY = 20;
 
@@ -99,6 +92,14 @@ const LoanTable = () => {
   const [members,        setMembers]        = useState([]);
   const [books,          setBooks]          = useState([]);
   const [semesters,      setSemesters]      = useState([]);
+  const emptyLoan = () => {
+  const activeSem = semesters.find(s => s.is_active);
+    return {
+      member: 0, book: 0, loan_date: today(),
+      due_date: null, return_date: null,  
+      semester: activeSem?.id ?? null,
+    };
+  };
   const [loading,        setLoading]        = useState(true);
   const [error,          setError]          = useState('');
   const [search,         setSearch]         = useState('');
@@ -109,7 +110,10 @@ const LoanTable = () => {
   const [verifyNotes,    setVerifyNotes]    = useState('');
   const [rejectModal,    setRejectModal]    = useState(null);
   const [rejectReason,   setRejectReason]   = useState('');
-  const [form,           setForm]           = useState(emptyLoan());
+  const [form, setForm] = useState({
+    member: 0, book: 0, loan_date: today(),
+    due_date: null, return_date: null, semester: null,
+  });
   const [saving,         setSaving]         = useState(false);
   const [actionLoading,  setActionLoading]  = useState(false);
 
@@ -117,14 +121,15 @@ const LoanTable = () => {
   const [showFilterModal, setShowFilterModal] = useState(false);
   const [statusFilter,    setStatusFilter]    = useState('all');
   const [semesterFilter,  setSemesterFilter]  = useState('');
+
   // pending filters (inside drawer before Apply)
   const [draftStatus,     setDraftStatus]     = useState('all');
   const [draftSemester,   setDraftSemester]   = useState('');
 
   // ── Data loading ────────────────────────────────────────────────────────────
-  const load = async () => {
+  const load = async (silent = false) => {
     try {
-      setLoading(true);
+      if (!silent) setLoading(true); // ✅
       const [l, m, b, sems] = await Promise.all([
         getLoansBySemester(semesterFilter),
         getMembers(), getBooks(), getSemesters(),
@@ -138,6 +143,12 @@ const LoanTable = () => {
   };
 
   useEffect(() => { load(); }, [semesterFilter]);
+
+  useFocusEffect(
+    useCallback(() => {
+      load(true);
+    }, [semesterFilter])
+  );
 
   // ── Helpers ─────────────────────────────────────────────────────────────────
   const memberName  = (id) => members.find(m => m.id === id)?.name ?? '—';

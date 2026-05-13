@@ -1,5 +1,5 @@
 # app/views.py
-from .models import Author, Book, Department, Loan, Reservation, Category, Semester, Department
+from .models import Author, Book, Department, Loan, Reservation, Category, Semester
 from .serializers import (
     AuthorSerializer, BookSerializer,
     LoanSerializer, ReturnVerificationSerializer,
@@ -200,15 +200,42 @@ class BorrowerChangePasswordView(APIView):
         user.save()
         return Response({'message': 'Password changed successfully.'})
 
-
 class BorrowerBooksView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        books = Book.objects.all()
-        serializer = BookSerializer(books, many=True, context={'request': request})
-        return Response(serializer.data)
+        books      = Book.objects.all()
+        category   = request.query_params.get('category')    # filter by category id
+        department = request.query_params.get('department')  # filter by department id
+        search     = request.query_params.get('search')
+        if category:
+            books = books.filter(category_id=category)
+        if department:
+            books = books.filter(department_id=department)
+        if search:
+            books = books.filter(title__icontains=search)
+        return Response(BookSerializer(books, many=True, context={'request': request}).data)
 
+
+class BookListCreateView(ListCreateAPIView):
+    serializer_class = BookSerializer
+    parser_classes   = [MultiPartParser, FormParser, JSONParser]
+
+    def get_queryset(self):
+        queryset   = Book.objects.all()
+        category   = self.request.query_params.get('category')
+        department = self.request.query_params.get('department')
+        search     = self.request.query_params.get('search')
+        if category:
+            queryset = queryset.filter(category_id=category)
+        if department:
+            queryset = queryset.filter(department_id=department)
+        if search:
+            queryset = queryset.filter(title__icontains=search)
+        return queryset
+
+    def get_serializer_context(self):
+        return {'request': self.request}
 
 class BorrowerBorrowView(APIView):
     permission_classes = [IsAuthenticated]
@@ -515,16 +542,6 @@ class AuthorRetrieveUpdateDestroyView(RetrieveUpdateDestroyAPIView):
     queryset         = Author.objects.all()
     serializer_class = AuthorSerializer
 
-
-class BookListCreateView(ListCreateAPIView):
-    queryset         = Book.objects.all()
-    serializer_class = BookSerializer
-    parser_classes   = [MultiPartParser, FormParser, JSONParser]
-
-    def get_serializer_context(self):
-        return {'request': self.request}
-
-
 class BookRetrieveUpdateDestroyView(RetrieveUpdateDestroyAPIView):
     queryset         = Book.objects.all()
     serializer_class = BookSerializer
@@ -642,46 +659,6 @@ class DepartmentDetailView(APIView):
             return Response({'error': 'Department not found.'}, status=status.HTTP_404_NOT_FOUND)
         dept.delete()
         return Response({'message': 'Department deleted.'}, status=status.HTTP_204_NO_CONTENT)
-
-
-# ── Updated book views with filtering ──
-
-class BorrowerBooksView(APIView):
-    permission_classes = [IsAuthenticated]
-
-    def get(self, request):
-        books      = Book.objects.all()
-        category   = request.query_params.get('category')    # filter by category id
-        department = request.query_params.get('department')  # filter by department id
-        search     = request.query_params.get('search')
-        if category:
-            books = books.filter(category_id=category)
-        if department:
-            books = books.filter(department_id=department)
-        if search:
-            books = books.filter(title__icontains=search)
-        return Response(BookSerializer(books, many=True, context={'request': request}).data)
-
-
-class BookListCreateView(ListCreateAPIView):
-    serializer_class = BookSerializer
-    parser_classes   = [MultiPartParser, FormParser, JSONParser]
-
-    def get_queryset(self):
-        queryset   = Book.objects.all()
-        category   = self.request.query_params.get('category')
-        department = self.request.query_params.get('department')
-        search     = self.request.query_params.get('search')
-        if category:
-            queryset = queryset.filter(category_id=category)
-        if department:
-            queryset = queryset.filter(department_id=department)
-        if search:
-            queryset = queryset.filter(title__icontains=search)
-        return queryset
-
-    def get_serializer_context(self):
-        return {'request': self.request}
 
 
 # ── Admin loans by semester ──

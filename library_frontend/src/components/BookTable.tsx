@@ -1,3 +1,4 @@
+// src/components/BookTable.tsx
 import React, { useEffect, useState } from 'react';
 import { Book, Author } from '../types';
 import { getBooks, createBook, updateBook, deleteBook, getAuthors } from '../api';

@@ -1,5 +1,7 @@
+// lib/api.js
 import axios from "axios";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { router } from "expo-router";
 
 const BASE_URL = process.env.EXPO_PUBLIC_API_URL;
 
@@ -20,7 +22,7 @@ api.interceptors.response.use(
   async (err) => {
     if (err.response?.status === 401) {
       await AsyncStorage.multiRemove(["token", "username", "role", "member_id"]);
-      // router.replace("/(auth)/login"); // uncomment after router setup
+      router.replace("/(auth)/login");
     }
     return Promise.reject(err);
   }
@@ -31,17 +33,99 @@ export const loginApi = (email, password) =>
   axios.post(`${BASE_URL}/login/`, { email, password }).then((r) => r.data);
 
 export const registerApi = (data) =>
-  axios.post(`${BASE_URL}/register/`, data).then((r) => r.data);
+  axios.post(`${BASE_URL}/register/`, data, {
+    headers: { "Content-Type": "multipart/form-data" },
+  }).then((r) => r.data);
 
 export const logoutApi = () =>
   api.post("/logout/");
+
+// ── Authors ───────────────────────────────────────
+export const getAuthors = () =>
+  api.get("/authors/").then((r) => r.data);
+
+export const createAuthor = (data) =>
+  api.post("/authors/", data).then((r) => r.data);
+
+export const updateAuthor = (id, data) =>
+  api.put(`/authors/${id}/`, data).then((r) => r.data);
+
+export const deleteAuthor = (id) =>
+  api.delete(`/authors/${id}/`);
 
 // ── Books ─────────────────────────────────────────
 export const getBooks = () =>
   api.get("/books/").then((r) => r.data);
 
-export const borrowerGetBooks = () =>
-  api.get("/borrower/books/").then((r) => r.data);
+export const createBook = (data) => {
+  const fd = new FormData();
+  fd.append("title", data.title);
+  fd.append("isbn", data.isbn);
+  fd.append("publication_year", String(data.publication_year));
+  fd.append("author", String(data.author));
+  fd.append("available", String(data.available));
+  fd.append("description", data.description ?? "");
+  if (data.cover_image) {
+    // React Native FormData format for images
+    fd.append("cover_image", {
+      uri: data.cover_image.uri,
+      name: data.cover_image.name ?? "cover.jpg",
+      type: data.cover_image.type ?? "image/jpeg",
+    });
+  }
+  return api.post("/books/", fd, {
+    headers: { "Content-Type": "multipart/form-data" },
+  }).then((r) => r.data);
+};
+
+export const updateBook = (id, data) => {
+  const fd = new FormData();
+  fd.append("title", data.title);
+  fd.append("isbn", data.isbn);
+  fd.append("publication_year", String(data.publication_year));
+  fd.append("author", String(data.author));
+  fd.append("available", String(data.available));
+  fd.append("description", data.description ?? "");
+  if (data.cover_image) {
+    fd.append("cover_image", {
+      uri: data.cover_image.uri,
+      name: data.cover_image.name ?? "cover.jpg",
+      type: data.cover_image.type ?? "image/jpeg",
+    });
+  }
+  return api.patch(`/books/${id}/`, fd, {
+    headers: { "Content-Type": "multipart/form-data" },
+  }).then((r) => r.data);
+};
+
+export const deleteBook = (id) =>
+  api.delete(`/books/${id}/`);
+
+// ── Members ───────────────────────────────────────
+export const getMembers = () =>
+  api.get("/members/").then((r) => r.data);
+
+export const createMember = (data) =>
+  api.post("/members/", data).then((r) => r.data);
+
+export const updateMember = (id, data) =>
+  api.put(`/members/${id}/`, data).then((r) => r.data);
+
+export const deleteMember = (id) =>
+  api.delete(`/members/${id}/`);
+
+// ── Loans ─────────────────────────────────────────
+export const getLoans = () =>
+  api.get("/loans/").then((r) => r.data);
+
+export const createLoan = (data) =>
+  api.post("/loans/", data).then((r) => r.data);
+
+export const updateLoan = (id, data) =>
+  api.put(`/loans/${id}/`, data).then((r) => r.data);
+
+export const deleteLoan = (id) =>
+  api.delete(`/loans/${id}/`);
 
 // ── Borrower ──────────────────────────────────────
 export const getProfile = () =>
@@ -55,6 +139,9 @@ export const changePassword = (data) =>
 
 export const deleteAccount = () =>
   api.delete("/borrower/profile/");
+
+export const borrowerGetBooks = () =>
+  api.get("/borrower/books/").then((r) => r.data);
 
 export const borrowerBorrow = (book_id) =>
   api.post("/borrower/borrow/", { book_id }).then((r) => r.data);
@@ -109,17 +196,5 @@ export const superadminDeleteStaff = (id) =>
 
 export const superadminEditStaff = (id, data) =>
   api.patch(`/superadmin/staff/${id}/edit/`, data).then((r) => r.data);
-
-// ── Authors ───────────────────────────────────────
-export const getAuthors = () =>
-  api.get("/authors/").then((r) => r.data);
-
-// ── Members ───────────────────────────────────────
-export const getMembers = () =>
-  api.get("/members/").then((r) => r.data);
-
-// ── Loans ─────────────────────────────────────────
-export const getLoans = () =>
-  api.get("/loans/").then((r) => r.data);
 
 export default api;

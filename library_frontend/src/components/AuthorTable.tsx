@@ -1,3 +1,4 @@
+// src/components/AuthorTable.tsx
 import React, { useEffect, useState } from 'react';
 import { Author } from '../types';
 import { getAuthors, createAuthor, updateAuthor, deleteAuthor } from '../api';

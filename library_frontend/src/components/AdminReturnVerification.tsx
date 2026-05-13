@@ -1,3 +1,4 @@
+// src/components/AdminReturnVerification.tsx
 import React, { useEffect, useState } from 'react';
 import { getPendingReturns, verifyReturn, rejectReturn } from '../api';
 

@@ -5,6 +5,7 @@ import {
 import { useState } from "react";
 import { router } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
+import { registerApi } from "../../lib/api";
 
 export default function Register() {
   const [form, setForm] = useState({
@@ -18,7 +19,7 @@ export default function Register() {
 
   const pickImage = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ImagePicker.MediaType.IMAGE, // ✅ fixed deprecated API
       allowsEditing: true,
       aspect: [1, 1],
       quality: 0.8,
@@ -37,6 +38,7 @@ export default function Register() {
     try {
       setLoading(true);
       setError("");
+
       const formData = new FormData();
       formData.append("username", username);
       formData.append("email", email);
@@ -52,13 +54,12 @@ export default function Register() {
           name: "profile.jpg",
         });
       }
-      const res = await fetch(
-        `${process.env.EXPO_PUBLIC_API_URL}/auth/users/`,
-        { method: "POST", body: formData }
-      );
-      const data = await res.json();
-      if (res.ok) {
-        setSuccess("Account created! Please check your email to activate your account.");
+
+      // uses registerApi from lib/api.js which hits /register/
+      const data = await registerApi(formData);
+
+      if (data && !data.error && !data.username && !data.email && !data.password) {
+        setSuccess("Account created! You can now log in.");
       } else {
         const errs = Object.values(data).flat().join(" ");
         setError(errs || "Registration failed.");
@@ -74,14 +75,14 @@ export default function Register() {
   const passwordMismatch = form.re_password !== "" && form.password !== form.re_password;
 
   if (success) return (
-    <View className="flex-1 justify-center px-6" style={{ backgroundColor: "#1c1917" }}>
+    <View style={{ flex: 1, justifyContent: "center", paddingHorizontal: 24, backgroundColor: "#1c1917" }}>
       <View style={{
         backgroundColor: "rgba(255,255,255,0.08)", borderRadius: 16,
         borderWidth: 1, borderColor: "rgba(255,255,255,0.1)", padding: 28, alignItems: "center"
       }}>
         <Text style={{ fontSize: 40, marginBottom: 16 }}>📧</Text>
         <Text style={{ color: "#fff", fontSize: 20, fontWeight: "300", marginBottom: 8 }}>
-          Check your email
+          Account Created
         </Text>
         <Text style={{ color: "rgba(255,255,255,0.5)", fontSize: 13, textAlign: "center", marginBottom: 24 }}>
           {success}
@@ -102,10 +103,10 @@ export default function Register() {
       contentContainerStyle={{ flexGrow: 1 }}
       keyboardShouldPersistTaps="handled"
     >
-      <View className="px-6 py-12">
+      <View style={{ paddingHorizontal: 24, paddingVertical: 48 }}>
 
         {/* Header */}
-        <View className="items-center mb-8">
+        <View style={{ alignItems: "center", marginBottom: 32 }}>
           <View style={{
             backgroundColor: "rgba(217,119,6,0.1)", borderRadius: 16,
             borderWidth: 1, borderColor: "rgba(217,119,6,0.3)",
@@ -120,9 +121,7 @@ export default function Register() {
         </View>
 
         {/* Card */}
-        <View style={{
-          backgroundColor: "#fff", borderRadius: 16, padding: 24,
-        }}>
+        <View style={{ backgroundColor: "#fff", borderRadius: 16, padding: 24 }}>
           <Text style={{ color: "#1c1917", fontSize: 20, fontWeight: "300", marginBottom: 4 }}>
             Create your account
           </Text>

@@ -1,3 +1,4 @@
+// src/components/MemberTable.tsx
 import React, { useEffect, useState } from 'react';
 import { Member } from '../types';
 import { getMembers, createMember, updateMember, deleteMember } from '../api';
@@ -50,6 +51,10 @@ const MemberTable: React.FC = () => {
     m.email.toLowerCase().includes(search.toLowerCase())
   );
 
+  const getInitials = (name: string) => {
+    return name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase();
+  };
+
   if (loading) return (
     <div className="flex flex-col items-center justify-center py-20 gap-3 text-[#7a6a52]">
       <div className="w-9 h-9 border-[3px] border-[#e2d9c4] border-t-[#6b1d2a] rounded-full animate-spin" />
@@ -82,21 +87,26 @@ const MemberTable: React.FC = () => {
         <table className="w-full border-collapse text-sm">
           <thead>
             <tr className="bg-[#f5f0e8] border-b border-[#cfc4aa]">
-              {['Name','Email','Contact','Joined','Address','Actions'].map(h => (
+              {['', 'Name', 'Email', 'Contact', 'Joined', 'Address', 'Actions'].map(h => (
                 <th key={h} style={{fontFamily:'Playfair Display, serif'}}
-                  className="text-left px-4 py-3 text-xs font-semibold tracking-wider uppercase text-[#7a6a52]">{h}</th>
+                  className="text-left px-4 py-3 text-xs font-semibold tracking-wider uppercase text-[#7a6a52]">{h === '' ? 'Photo' : h}</th>
               ))}
             </tr>
           </thead>
           <tbody>
             {filtered.length === 0 ? (
-              <tr><td colSpan={6} className="text-center py-16 text-[#7a6a52]">
+              <tr><td colSpan={7} className="text-center py-16 text-[#7a6a52]">
                 <div className="text-4xl mb-3">🎓</div>
                 <div style={{fontFamily:'Playfair Display, serif'}} className="text-lg text-[#3d2f1a] mb-1">No members found</div>
                 <div className="italic text-sm">Add your first library member.</div>
               </td></tr>
             ) : filtered.map(m => (
               <tr key={m.id} className="border-b border-[#f0ebe0] hover:bg-[#fdfaf4] transition-colors">
+                <td className="px-4 py-3">
+                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#6b1d2a] to-[#8c2f3f] flex items-center justify-center text-white text-sm font-bold shadow-md">
+                    {getInitials(m.name)}
+                  </div>
+                </td>
                 <td className="px-4 py-3 font-semibold text-[#1a1209]">{m.name}</td>
                 <td className="px-4 py-3 text-xs text-[#3d2f1a]">{m.email}</td>
                 <td className="px-4 py-3 text-[#3d2f1a]">{m.contact_number || '—'}</td>

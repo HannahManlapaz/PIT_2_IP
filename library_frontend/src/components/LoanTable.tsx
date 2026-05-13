@@ -1,3 +1,4 @@
+// src/components/LoanTable.tsx
 import React, { useEffect, useState } from 'react';
 import { Loan, Member, Book } from '../types';
 import { getLoans, createLoan, updateLoan, deleteLoan, getMembers, getBooks, verifyReturn, rejectReturn } from '../api';

@@ -45,4 +45,16 @@ urlpatterns = [
     path('members/',          views.MemberListView.as_view(),                  name='member-list'),
     path('members/<int:pk>/', views.MemberDetailView.as_view(), name='member-detail'), 
     path('change-password/',  views.ChangePasswordView.as_view(),              name='change-password'),
+    
+    # Categories
+    path('categories/',          views.CategoryListCreateView.as_view(), name='category-list'),
+    path('categories/<int:pk>/', views.CategoryDetailView.as_view(),     name='category-detail'),
+
+    # Departments
+    path('departments/',          views.DepartmentListCreateView.as_view(), name='department-list'),
+    path('departments/<int:pk>/', views.DepartmentDetailView.as_view(),     name='department-detail'),
+
+    # Loans by semester
+    path('admin/loans-by-semester/', views.AdminLoansBySemesterView.as_view(), name='admin-loans-by-semester'),
+
 ]

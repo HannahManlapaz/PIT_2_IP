@@ -18,6 +18,7 @@ export default function StaffDashboard() {
   const [loading,  setLoading]  = useState(true);
   const [error,    setError]    = useState("");
   const [username, setUsername] = useState("");
+  
 
   useEffect(() => {
     AsyncStorage.getItem("username").then(u => setUsername(u || "Librarian"));
@@ -62,6 +63,8 @@ export default function StaffDashboard() {
     { emoji: "👥", label: "Members", route: "/admin/members" },
     { emoji: "📋", label: "Loans",   route: "/admin/loans"   },
     { emoji: "↩️", label: "Returns", route: "/admin/returns" },
+    { emoji: "📂", label: "Categories", route: "/admin/categories"  }, 
+    { emoji: "🏫", label: "Departments",route: "/admin/departments" },
   ];
 
   return (

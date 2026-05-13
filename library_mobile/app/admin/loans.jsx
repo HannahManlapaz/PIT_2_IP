@@ -5,7 +5,7 @@ import {
   ActivityIndicator, StyleSheet, ScrollView, LayoutAnimation, Platform, UIManager,
 } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
-import { getLoans, createLoan, updateLoan, deleteLoan, getMembers, getBooks, verifyReturn, rejectReturn } from '../../lib/api';
+import { getLoans, createLoan, updateLoan, deleteLoan, getMembers, getBooks, verifyReturn, rejectReturn, getLoansBySemester } from '../../lib/api';
 import BottomSheetModal, { ModalCancelButton, ModalSubmitButton } from '../../lib/BottomSheetModal';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -40,7 +40,7 @@ const C = {
 };
 
 const today = () => new Date().toISOString().split('T')[0];
-const emptyLoan = () => ({ member: 0, book: 0, loan_date: today(), due_date: null, return_date: null });
+const emptyLoan = () => ({ member: 0, book: 0, loan_date: today(), due_date: null, return_date: null, semester: '1st_sem' });
 const FEE_PER_DAY = 20;
 
 // ── Date field — plain TextInput (works on web + native) ──────────────────────
@@ -82,7 +82,7 @@ const LoanTable = () => {
   const load = async () => {
     try {
       setLoading(true);
-      const [l, m, b] = await Promise.all([getLoans(), getMembers(), getBooks()]);
+      const [l, m, b] = await Promise.all([getLoansBySemester(semester), getMembers(), getBooks()]);
       setLoans(Array.isArray(l) ? l : []);
       setMembers(Array.isArray(m) ? m : []);
       setBooks(Array.isArray(b) ? b : []);
@@ -90,7 +90,7 @@ const LoanTable = () => {
     } catch { setError('Failed to load loans.'); }
     finally { setLoading(false); }
   };
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); }, [semester]);
 
   const openCreate = () => { setForm(emptyLoan()); setEditing(null); setError(''); setShowForm(true); };
   const openEdit = (loan) => {
@@ -247,7 +247,29 @@ const LoanTable = () => {
         autoCapitalize="none"
       />
 
-      {/* ── Filter tabs — fixed height, horizontal scroll ── */}
+      {/* Semester filter */}
+      <View style={s.semesterRow}>
+        <Text style={s.semesterLabel}>Semester:</Text>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{ gap: 6, flexDirection: "row" }}>
+          {[
+            { key: '',        label: 'All' },
+            { key: '1st_sem', label: '1st Sem' },
+            { key: '2nd_sem', label: '2nd Sem' },
+            { key: 'summer',  label: 'Summer' },
+          ].map(({ key, label }) => (
+            <TouchableOpacity
+              key={key}
+              style={[s.filterBtn, semester === key && { backgroundColor: C.red, borderColor: C.red }]}
+              onPress={() => setSemester(key)}
+            >
+              <Text style={[s.filterBtnText, semester === key && { color: C.white }]}>{label}</Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      </View>
+
+      {/* ── Filter tabs ── */}
       <View style={s.filterWrap}>
         <ScrollView
           horizontal
@@ -423,6 +445,7 @@ const LoanTable = () => {
           </View>
         )}
 
+        {/* Member Picker ── */}
         <View style={s.fieldWrap}>
           <Text style={s.label}>Member *</Text>
           <View style={s.pickerWrap}>
@@ -433,6 +456,22 @@ const LoanTable = () => {
           </View>
         </View>
 
+        {/* Semester Picker ── */}
+        <View style={s.fieldWrap}>
+          <Text style={s.label}>Semester</Text>
+          <View style={s.pickerWrap}>
+            <Picker
+              selectedValue={form.semester ?? '1st_sem'}
+              onValueChange={v => setForm({ ...form, semester: v })}
+              style={s.picker}>
+              <Picker.Item label="1st Semester" value="1st_sem" />
+              <Picker.Item label="2nd Semester" value="2nd_sem" />
+              <Picker.Item label="Summer"       value="summer"  />
+            </Picker>
+          </View>
+        </View>
+
+        {/* Book Picker ── */}
         <View style={s.fieldWrap}>
           <Text style={s.label}>Book *</Text>
           <View style={s.pickerWrap}>
@@ -615,6 +654,9 @@ const s = StyleSheet.create({
   loanActions:    { flexDirection: 'row', flexWrap: 'wrap', paddingLeft: 20 },
   actionBtn:      { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 5, borderWidth: 1, marginRight: 6, marginBottom: 4 },
   actionBtnText:  { fontSize: 11, fontWeight: '600' },
+
+  semesterRow:   { flexDirection: 'row', alignItems: 'center', marginBottom: 10, gap: 8 },
+  semesterLabel: { fontSize: 12, color: C.textMuted, fontStyle: 'italic', flexShrink: 0 },
 
   badge:          { paddingHorizontal: 7, paddingVertical: 2, borderRadius: 999, borderWidth: 1 },
   badgeText:      { fontSize: 10, fontWeight: '600' },

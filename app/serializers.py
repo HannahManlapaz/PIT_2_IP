@@ -1,5 +1,6 @@
+# app/serializers.py
 from rest_framework import serializers
-from .models import Author, Book, Loan, Reservation
+from .models import Author, Book, Loan, Reservation, Category, Department
 from datetime import date
 from django.contrib.auth import get_user_model
 
@@ -11,15 +12,30 @@ class AuthorSerializer(serializers.ModelSerializer):
         model  = Author
         fields = '__all__'
 
+class CategorySerializer(serializers.ModelSerializer):
+    class Meta:
+        model  = Category
+        fields = '__all__'
+
+
+class DepartmentSerializer(serializers.ModelSerializer):
+    class Meta:
+        model  = Department
+        fields = '__all__'
+
 
 class BookSerializer(serializers.ModelSerializer):
-    author_name     = serializers.SerializerMethodField()
-    cover_image_url = serializers.SerializerMethodField()
+    author_name      = serializers.SerializerMethodField()
+    cover_image_url  = serializers.SerializerMethodField()
+    category_name    = serializers.SerializerMethodField()    
+    department_name  = serializers.SerializerMethodField()    
 
     class Meta:
         model  = Book
         fields = ['id', 'title', 'isbn', 'publication_year', 'author',
-                  'author_name', 'available', 'cover_image', 'cover_image_url', 'description']
+                  'author_name', 'available', 'cover_image', 'cover_image_url',
+                  'description', 'category', 'category_name',
+                  'department', 'department_name']             
 
     def get_author_name(self, obj):
         return obj.author.name if obj.author else None
@@ -31,10 +47,18 @@ class BookSerializer(serializers.ModelSerializer):
             return url
         return None
 
+    def get_category_name(self, obj):
+        return obj.category.name if obj.category else None    
+
+    def get_department_name(self, obj):
+        return obj.department.name if obj.department else None  
+
 
 class LoanSerializer(serializers.ModelSerializer):
     member_name      = serializers.SerializerMethodField()
     book_title       = serializers.SerializerMethodField()
+    book_category    = serializers.SerializerMethodField()    
+    book_department  = serializers.SerializerMethodField() 
     overdue_days     = serializers.SerializerMethodField()
     verified_by_name = serializers.SerializerMethodField()
 
@@ -42,10 +66,12 @@ class LoanSerializer(serializers.ModelSerializer):
         model  = Loan
         fields = [
             'id', 'member', 'book', 'member_name', 'book_title',
+            'book_category', 'book_department',
             'loan_date', 'due_date', 'return_date', 'return_requested_date',
             'return_verified_date', 'return_status', 'verified_by',
-            'verified_by_name', 'overdue_days', 'notes'
+            'verified_by_name', 'overdue_days', 'notes', 'semester'  
         ]
+        
         read_only_fields = ['return_verified_date', 'verified_by']
 
     def get_member_name(self, obj):
@@ -53,6 +79,12 @@ class LoanSerializer(serializers.ModelSerializer):
 
     def get_book_title(self, obj):
         return obj.book.title if obj.book else None
+    
+    def get_book_category(self, obj):
+        return obj.book.category.name if obj.book and obj.book.category else None
+
+    def get_book_department(self, obj):
+        return obj.book.department.name if obj.book and obj.book.department else None
 
     def get_overdue_days(self, obj):
         if obj.return_verified_date or not obj.due_date:

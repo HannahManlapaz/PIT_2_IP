@@ -12,7 +12,7 @@ import { router } from "expo-router";
 import { Feather } from "@expo/vector-icons";
 import {
   borrowerGetBooks, borrowerBorrow, borrowerReserve,
-  borrowerCancelReservation, borrowerMyReservations, logoutApi,
+  borrowerCancelReservation, borrowerMyReservations, logoutApi, getCategories, getDepartments, borrowerGetBooksFiltered,
 } from "../../lib/api";
 
 const { width } = Dimensions.get("window");
@@ -77,21 +77,40 @@ export default function BrowseScreen() {
   const [username,     setUsername]     = useState("");
   const [selectedBook, setSelectedBook] = useState(null);
   const [activeFilter, setActiveFilter] = useState("all");
+  const [categories,       setCategories]       = useState([]);
+  const [departments,      setDepartments]      = useState([]);
+  const [selectedCategory, setSelectedCategory] = useState(null);
+  const [selectedDept,     setSelectedDept]     = useState(null);
+  const [showCatFilter,    setShowCatFilter]    = useState(false);
+  const [showDeptFilter,   setShowDeptFilter]   = useState(false);
 
   const load = useCallback(async () => {
     try {
       setLoading(true);
-      const [b, r] = await Promise.all([borrowerGetBooks(), borrowerMyReservations()]);
+      const [b, r, cats, depts] = await Promise.all([
+        borrowerGetBooksFiltered({
+          category:   selectedCategory ?? undefined,
+          department: selectedDept     ?? undefined,
+          search:     search           || undefined,
+        }),
+        borrowerMyReservations(),
+        getCategories(),
+        getDepartments(),
+      ]);
       setBooks(b);
       setReservations(r);
+      setCategories(cats);
+      setDepartments(depts);
     } catch { setError("Failed to load books."); }
     finally { setLoading(false); }
-  }, []);
+  }, [selectedCategory, selectedDept]);
 
   useEffect(() => {
     load();
     AsyncStorage.getItem("username").then(u => setUsername(u || ""));
   }, []);
+
+  useEffect(() => { load(); }, [selectedCategory, selectedDept]);
 
   useEffect(() => {
     if (error || success) {
@@ -287,6 +306,94 @@ export default function BrowseScreen() {
           </TouchableOpacity>
         )}
       </View>
+
+      {/* ── Category & Department filters ── */}
+      <ScrollView horizontal showsHorizontalScrollIndicator={false}
+        style={{ paddingHorizontal: 12, marginBottom: 8 }}
+        contentContainerStyle={{ gap: 8, flexDirection: "row" }}
+      >
+        {/* Category filter */}
+        <TouchableOpacity
+          style={[s.filterChip, selectedCategory && s.filterChipActive]}
+          onPress={() => { setShowCatFilter(true); setShowDeptFilter(false); }}
+        >
+          <Feather name="tag" size={11} color={selectedCategory ? "#fff" : C.textMuted} />
+          <Text style={[s.filterChipText, selectedCategory && s.filterChipTextActive]}>
+            {selectedCategory
+              ? categories.find(c => c.id === selectedCategory)?.name ?? "Category"
+              : "Category"}
+          </Text>
+          {selectedCategory && (
+            <TouchableOpacity onPress={() => setSelectedCategory(null)} hitSlop={8}>
+              <Feather name="x" size={10} color="#fff" />
+            </TouchableOpacity>
+          )}
+        </TouchableOpacity>
+
+        {/* Department filter */}
+        <TouchableOpacity
+          style={[s.filterChip, selectedDept && s.filterChipActive]}
+          onPress={() => { setShowDeptFilter(true); setShowCatFilter(false); }}
+        >
+          <Feather name="book-open" size={11} color={selectedDept ? "#fff" : C.textMuted} />
+          <Text style={[s.filterChipText, selectedDept && s.filterChipTextActive]}>
+            {selectedDept
+              ? departments.find(d => d.id === selectedDept)?.name ?? "Department"
+              : "Department"}
+          </Text>
+          {selectedDept && (
+            <TouchableOpacity onPress={() => setSelectedDept(null)} hitSlop={8}>
+              <Feather name="x" size={10} color="#fff" />
+            </TouchableOpacity>
+          )}
+        </TouchableOpacity>
+
+        {/* Clear all */}
+        {(selectedCategory || selectedDept) && (
+          <TouchableOpacity
+            style={s.clearBtn}
+            onPress={() => { setSelectedCategory(null); setSelectedDept(null); }}
+          >
+            <Text style={s.clearBtnText}>Clear all</Text>
+          </TouchableOpacity>
+        )}
+      </ScrollView>
+
+      {/* Category picker modal */}
+      <Modal visible={showCatFilter} transparent animationType="fade" onRequestClose={() => setShowCatFilter(false)}>
+        <TouchableOpacity style={s.filterModalOverlay} onPress={() => setShowCatFilter(false)} activeOpacity={1}>
+          <View style={s.filterModalSheet}>
+            <Text style={s.filterModalTitle}>Filter by Category</Text>
+            <TouchableOpacity style={s.filterModalItem} onPress={() => { setSelectedCategory(null); setShowCatFilter(false); }}>
+              <Text style={[s.filterModalItemText, !selectedCategory && s.filterModalItemActive]}>All Categories</Text>
+            </TouchableOpacity>
+            {categories.map(c => (
+              <TouchableOpacity key={c.id} style={s.filterModalItem}
+                onPress={() => { setSelectedCategory(c.id); setShowCatFilter(false); }}>
+                <Text style={[s.filterModalItemText, selectedCategory === c.id && s.filterModalItemActive]}>{c.name}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* Department picker modal */}
+      <Modal visible={showDeptFilter} transparent animationType="fade" onRequestClose={() => setShowDeptFilter(false)}>
+        <TouchableOpacity style={s.filterModalOverlay} onPress={() => setShowDeptFilter(false)} activeOpacity={1}>
+          <View style={s.filterModalSheet}>
+            <Text style={s.filterModalTitle}>Filter by Department</Text>
+            <TouchableOpacity style={s.filterModalItem} onPress={() => { setSelectedDept(null); setShowDeptFilter(false); }}>
+              <Text style={[s.filterModalItemText, !selectedDept && s.filterModalItemActive]}>All Departments</Text>
+            </TouchableOpacity>
+            {departments.map(d => (
+              <TouchableOpacity key={d.id} style={s.filterModalItem}
+                onPress={() => { setSelectedDept(d.id); setShowDeptFilter(false); }}>
+                <Text style={[s.filterModalItemText, selectedDept === d.id && s.filterModalItemActive]}>{d.name}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </TouchableOpacity>
+      </Modal>
 
       {/* ── Filter tabs ── */}
       <View style={s.filterRow}>
@@ -590,4 +697,24 @@ const s = StyleSheet.create({
   modalCancelText:  { fontFamily: FONTS.medium, color: C.textMuted, fontSize: 13 },
   modalActionBtn:   { flex: 2, paddingVertical: 12, borderRadius: 6, alignItems: "center" },
   modalActionText:  { fontFamily: FONTS.heading, color: "#fff", fontSize: 13, letterSpacing: 0.5 },
+  filterChip: {
+  flexDirection: "row", alignItems: "center", gap: 5,
+  paddingHorizontal: 12, paddingVertical: 6,
+  borderRadius: 20, borderWidth: 1, borderColor: C.border,
+  backgroundColor: C.surface,
+},
+  filterChipActive:     { backgroundColor: C.primary, borderColor: C.primary },
+  filterChipText:       { fontFamily: FONTS.medium, fontSize: 11, color: C.textSecondary },
+  filterChipTextActive: { color: "#fff" },
+  clearBtn:             { paddingHorizontal: 10, paddingVertical: 6, justifyContent: "center" },
+  clearBtnText:         { fontFamily: FONTS.italic, fontSize: 11, color: C.error },
+  filterModalOverlay:   { flex: 1, backgroundColor: "rgba(0,0,0,0.4)", justifyContent: "center", padding: 32 },
+  filterModalSheet: {
+    backgroundColor: C.surface, borderRadius: 14, padding: 16,
+    borderWidth: 1, borderColor: C.border,
+  },
+  filterModalTitle:      { fontFamily: FONTS.heading, fontSize: 14, color: C.textPrimary, marginBottom: 12, letterSpacing: 0.5 },
+  filterModalItem:       { paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: C.border },
+  filterModalItemText:   { fontFamily: FONTS.body, fontSize: 13, color: C.textSecondary },
+  filterModalItemActive: { color: C.goldDark, fontFamily: FONTS.medium },
 });

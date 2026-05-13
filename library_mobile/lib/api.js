@@ -65,8 +65,9 @@ export const createBook = (data) => {
   fd.append("author", String(data.author));
   fd.append("available", String(data.available));
   fd.append("description", data.description ?? "");
+  if (data.category)   fd.append("category",   String(data.category));   
+  if (data.department) fd.append("department",  String(data.department)); 
   if (data.cover_image) {
-    // React Native FormData format for images
     fd.append("cover_image", {
       uri: data.cover_image.uri,
       name: data.cover_image.name ?? "cover.jpg",
@@ -78,6 +79,7 @@ export const createBook = (data) => {
   }).then((r) => r.data);
 };
 
+
 export const updateBook = (id, data) => {
   const fd = new FormData();
   fd.append("title", data.title);
@@ -86,6 +88,8 @@ export const updateBook = (id, data) => {
   fd.append("author", String(data.author));
   fd.append("available", String(data.available));
   fd.append("description", data.description ?? "");
+  if (data.category)   fd.append("category",   String(data.category));   
+  if (data.department) fd.append("department",  String(data.department)); 
   if (data.cover_image) {
     fd.append("cover_image", {
       uri: data.cover_image.uri,
@@ -196,5 +200,54 @@ export const superadminDeleteStaff = (id) =>
 
 export const superadminEditStaff = (id, data) =>
   api.patch(`/superadmin/staff/${id}/edit/`, data).then((r) => r.data);
+
+// ── Categories ────────────────────────────────────
+export const getCategories = () =>
+  api.get("/categories/").then((r) => r.data);
+
+export const createCategory = (data) =>
+  api.post("/categories/", data).then((r) => r.data);
+
+export const updateCategory = (id, data) =>
+  api.put(`/categories/${id}/`, data).then((r) => r.data);
+
+export const deleteCategory = (id) =>
+  api.delete(`/categories/${id}/`);
+
+// ── Departments ───────────────────────────────────
+export const getDepartments = () =>
+  api.get("/departments/").then((r) => r.data);
+
+export const createDepartment = (data) =>
+  api.post("/departments/", data).then((r) => r.data);
+
+export const updateDepartment = (id, data) =>
+  api.put(`/departments/${id}/`, data).then((r) => r.data);
+
+export const deleteDepartment = (id) =>
+  api.delete(`/departments/${id}/`);
+
+// ── Books with filters ────────────────────────────
+export const getBooksFiltered = (params = {}) => {
+  const query = new URLSearchParams();
+  if (params.category)   query.append("category",   params.category);
+  if (params.department) query.append("department",  params.department);
+  if (params.search)     query.append("search",      params.search);
+  const qs = query.toString();
+  return api.get(`/books/${qs ? "?" + qs : ""}`).then((r) => r.data);
+};
+
+export const borrowerGetBooksFiltered = (params = {}) => {
+  const query = new URLSearchParams();
+  if (params.category)   query.append("category",   params.category);
+  if (params.department) query.append("department",  params.department);
+  if (params.search)     query.append("search",      params.search);
+  const qs = query.toString();
+  return api.get(`/borrower/books/${qs ? "?" + qs : ""}`).then((r) => r.data);
+};
+
+// ── Admin loans by semester ───────────────────────
+export const getLoansBySemester = (semester = "") =>
+  api.get(`/admin/loans-by-semester/${semester ? "?semester=" + semester : ""}`).then((r) => r.data);
 
 export default api;

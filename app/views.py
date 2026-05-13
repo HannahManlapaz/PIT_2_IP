@@ -1,8 +1,9 @@
-from .models import Author, Book, Loan, Reservation
+# app/views.py
+from .models import Author, Book, Department, Loan, Reservation
 from .serializers import (
     AuthorSerializer, BookSerializer,
     LoanSerializer, ReturnVerificationSerializer,
-    ReservationSerializer
+    ReservationSerializer, CategorySerializer, DepartmentSerializer,
 )
 from user.serializers import UserSerializer, UserCreateSerializer, UserProfileSerializer
 from rest_framework.generics import ListCreateAPIView, RetrieveUpdateDestroyAPIView
@@ -541,3 +542,158 @@ class LoanListCreateView(ListCreateAPIView):
 class LoanRetrieveUpdateDestroyView(RetrieveUpdateDestroyAPIView):
     queryset         = Loan.objects.all()
     serializer_class = LoanSerializer
+
+# ── Category CRUD (admin only) ──
+
+class CategoryListCreateView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        # both borrowers and staff can list categories for filtering
+        categories = Category.objects.all()
+        return Response(CategorySerializer(categories, many=True).data)
+
+    def post(self, request):
+        if not request.user.is_staff:
+            return Response({'error': 'Unauthorized.'}, status=status.HTTP_403_FORBIDDEN)
+        serializer = CategorySerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class CategoryDetailView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get_object(self, pk):
+        try:
+            return Category.objects.get(pk=pk)
+        except Category.DoesNotExist:
+            return None
+
+    def put(self, request, pk):
+        if not request.user.is_staff:
+            return Response({'error': 'Unauthorized.'}, status=status.HTTP_403_FORBIDDEN)
+        category = self.get_object(pk)
+        if not category:
+            return Response({'error': 'Category not found.'}, status=status.HTTP_404_NOT_FOUND)
+        serializer = CategorySerializer(category, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def delete(self, request, pk):
+        if not request.user.is_staff:
+            return Response({'error': 'Unauthorized.'}, status=status.HTTP_403_FORBIDDEN)
+        category = self.get_object(pk)
+        if not category:
+            return Response({'error': 'Category not found.'}, status=status.HTTP_404_NOT_FOUND)
+        category.delete()
+        return Response({'message': 'Category deleted.'}, status=status.HTTP_204_NO_CONTENT)
+
+
+# ── Department CRUD (admin only) ──
+
+class DepartmentListCreateView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        departments = Department.objects.all()
+        return Response(DepartmentSerializer(departments, many=True).data)
+
+    def post(self, request):
+        if not request.user.is_staff:
+            return Response({'error': 'Unauthorized.'}, status=status.HTTP_403_FORBIDDEN)
+        serializer = DepartmentSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class DepartmentDetailView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get_object(self, pk):
+        try:
+            return Department.objects.get(pk=pk)
+        except Department.DoesNotExist:
+            return None
+
+    def put(self, request, pk):
+        if not request.user.is_staff:
+            return Response({'error': 'Unauthorized.'}, status=status.HTTP_403_FORBIDDEN)
+        dept = self.get_object(pk)
+        if not dept:
+            return Response({'error': 'Department not found.'}, status=status.HTTP_404_NOT_FOUND)
+        serializer = DepartmentSerializer(dept, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def delete(self, request, pk):
+        if not request.user.is_staff:
+            return Response({'error': 'Unauthorized.'}, status=status.HTTP_403_FORBIDDEN)
+        dept = self.get_object(pk)
+        if not dept:
+            return Response({'error': 'Department not found.'}, status=status.HTTP_404_NOT_FOUND)
+        dept.delete()
+        return Response({'message': 'Department deleted.'}, status=status.HTTP_204_NO_CONTENT)
+
+
+# ── Updated book views with filtering ──
+
+class BorrowerBooksView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        books      = Book.objects.all()
+        category   = request.query_params.get('category')    # filter by category id
+        department = request.query_params.get('department')  # filter by department id
+        search     = request.query_params.get('search')
+        if category:
+            books = books.filter(category_id=category)
+        if department:
+            books = books.filter(department_id=department)
+        if search:
+            books = books.filter(title__icontains=search)
+        return Response(BookSerializer(books, many=True, context={'request': request}).data)
+
+
+class BookListCreateView(ListCreateAPIView):
+    serializer_class = BookSerializer
+    parser_classes   = [MultiPartParser, FormParser, JSONParser]
+
+    def get_queryset(self):
+        queryset   = Book.objects.all()
+        category   = self.request.query_params.get('category')
+        department = self.request.query_params.get('department')
+        search     = self.request.query_params.get('search')
+        if category:
+            queryset = queryset.filter(category_id=category)
+        if department:
+            queryset = queryset.filter(department_id=department)
+        if search:
+            queryset = queryset.filter(title__icontains=search)
+        return queryset
+
+    def get_serializer_context(self):
+        return {'request': self.request}
+
+
+# ── Admin loans by semester ──
+
+class AdminLoansBySemesterView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        if not request.user.is_staff:
+            return Response({'error': 'Unauthorized.'}, status=status.HTTP_403_FORBIDDEN)
+        semester = request.query_params.get('semester')
+        loans    = Loan.objects.select_related('member', 'book').all()
+        if semester:
+            loans = loans.filter(semester=semester)
+        return Response(LoanSerializer(loans, many=True).data)

@@ -1,3 +1,4 @@
+# app/models.py
 from django.db import models
 from datetime import timedelta, date
 from django.conf import settings
@@ -11,6 +12,19 @@ class Author(models.Model):
     def __str__(self):
         return self.name
 
+class Category(models.Model):
+    name        = models.CharField(max_length=100, unique=True)
+    description = models.TextField(blank=True, null=True)
+
+    def __str__(self):
+        return self.name
+    
+class Department(models.Model):
+    name        = models.CharField(max_length=100, unique=True)
+    description = models.TextField(blank=True, null=True)
+
+    def __str__(self):
+        return self.name
 
 class Book(models.Model):
     title            = models.CharField(max_length=200)
@@ -20,6 +34,8 @@ class Book(models.Model):
     available        = models.BooleanField(default=True)
     cover_image      = models.ImageField(upload_to='book_covers/', null=True, blank=True)
     description      = models.TextField(blank=True, null=True)
+    category         = models.ForeignKey(Category, on_delete=models.SET_NULL, null=True, blank=True)    # ✅
+    department       = models.ForeignKey(Department, on_delete=models.SET_NULL, null=True, blank=True)  # ✅
 
     def __str__(self):
         return self.title
@@ -33,8 +49,15 @@ class Loan(models.Model):
         ('rejected', 'Return Rejected'),
         ('disputed', 'Disputed'),
     ]
+    
+    SEMESTER_CHOICES = [
+        ('1st_sem', '1st Semester'),
+        ('2nd_sem', '2nd Semester'),
+        ('summer',  'Summer'),
+    ]
 
     member                = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='loans')
+    semester              = models.CharField(max_length=20, choices=SEMESTER_CHOICES, default='1st_sem', blank=True)
     book                  = models.ForeignKey(Book, on_delete=models.CASCADE)
     loan_date             = models.DateField()
     due_date              = models.DateField(null=True, blank=True)

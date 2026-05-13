@@ -9,7 +9,7 @@ import { useFonts } from "expo-font";
 import { Feather } from "@expo/vector-icons";
 import {
   borrowerMyReservations, borrowerCancelReservation,
-  borrowerGetBooks, borrowerBorrow,
+  borrowerGetBooksFiltered, borrowerBorrow,
 } from "../../lib/api";
 
 const C = {
@@ -68,7 +68,7 @@ export default function ReservationsScreen() {
   const load = useCallback(async (silent = false) => {
     try {
       if (!silent) setLoading(true);
-      const [r, b] = await Promise.all([borrowerMyReservations(), borrowerGetBooks()]);
+      const [r, b] = await Promise.all([borrowerMyReservations(), borrowerGetBooksFiltered()]);
       const resArr = Array.isArray(r) ? r : [];
       const bkArr  = Array.isArray(b) ? b : [];
       setReservations(resArr.filter(r => r.status === "waiting" || r.status === "ready"));

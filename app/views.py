@@ -250,13 +250,16 @@ class BorrowerBorrowView(APIView):
         if not book.available:
             return Response({'error': 'This book is currently on loan.'}, status=status.HTTP_400_BAD_REQUEST)
 
+        # Mark book as unavailable
+        book.available = False
+        book.save()
+
         loan = Loan.objects.create(member=request.user, book=book, loan_date=date.today())
         Reservation.objects.filter(
             member=request.user, book=book, status='ready'
         ).update(status='fulfilled')
 
         return Response(LoanSerializer(loan).data, status=status.HTTP_201_CREATED)
-
 
 class BorrowerReturnRequestView(APIView):
     permission_classes = [IsAuthenticated]
@@ -324,9 +327,12 @@ class BorrowerReserveView(APIView):
         if already:
             return Response({'error': 'You already have a reservation for this book.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        reservation = Reservation.objects.create(member=request.user, book=book)
-        reservation.queue_position = Reservation.objects.filter(book=book, status='waiting').count()
-        reservation.save()
+        waiting_count = Reservation.objects.filter(book=book, status='waiting').count()
+        reservation = Reservation.objects.create(
+            member=request.user,
+            book=book,
+            queue_position=waiting_count + 1
+        )
 
         return Response(ReservationSerializer(reservation, context={'request': request}).data, status=status.HTTP_201_CREATED)
 
@@ -346,15 +352,35 @@ class BorrowerCancelReservationView(APIView):
 
     def post(self, request, reservation_id):
         try:
-            reservation = Reservation.objects.get(pk=reservation_id, member=request.user)
+            reservation = Reservation.objects.get(
+                pk=reservation_id, member=request.user
+            )
         except Reservation.DoesNotExist:
-            return Response({'error': 'Reservation not found.'}, status=status.HTTP_404_NOT_FOUND)
+            return Response(
+                {'error': 'Reservation not found.'},
+                status=status.HTTP_404_NOT_FOUND
+            )
 
         if reservation.status not in ['waiting', 'ready']:
-            return Response({'error': 'This reservation cannot be cancelled.'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {'error': 'This reservation cannot be cancelled.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
+        book = reservation.book
         reservation.status = 'cancelled'
         reservation.save()
+
+        # Reorder queue positions for remaining waiting reservations
+        remaining = Reservation.objects.filter(
+            book=book, status='waiting'
+        ).order_by('reserved_date')
+
+        for i, r in enumerate(remaining, start=1):
+            if r.queue_position != i:
+                r.queue_position = i
+                r.save()
+
         return Response({'message': 'Reservation cancelled successfully.'})
 
 
@@ -396,6 +422,10 @@ class AdminVerifyReturnView(APIView):
         loan.notes                = notes
         loan.save()
 
+        # Restore book availability
+        loan.book.available = True
+        loan.book.save()
+
         next_reservation = Reservation.objects.filter(
             book=loan.book, status='waiting'
         ).order_by('reserved_date').first()
@@ -404,11 +434,9 @@ class AdminVerifyReturnView(APIView):
             next_reservation.status        = 'ready'
             next_reservation.notified_date = date.today()
             next_reservation.save()
-
-        return Response({
-            'message': f'Return verified for "{loan.book.title}" by {loan.member.name}',
-            'loan': LoanSerializer(loan).data
-        })
+            # Book stays unavailable — next person in queue gets it
+            loan.book.available = False
+            loan.book.save()
 
 
 class AdminRejectReturnView(APIView):

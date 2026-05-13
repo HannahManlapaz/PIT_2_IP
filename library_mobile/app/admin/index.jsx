@@ -65,6 +65,7 @@ export default function StaffDashboard() {
     { emoji: "↩️", label: "Returns", route: "/admin/returns" },
     { emoji: "📂", label: "Categories", route: "/admin/categories"  }, 
     { emoji: "🏫", label: "Departments",route: "/admin/departments" },
+    { emoji: "🗓️", label: "Semesters", route: "/admin/semesters" },
   ];
 
   return (

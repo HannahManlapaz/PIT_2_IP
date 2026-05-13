@@ -11,7 +11,8 @@ export default function AdminLayout() {
       <Stack.Screen name="members" />
       <Stack.Screen name="loans" />
       <Stack.Screen name="categories" />    
-      <Stack.Screen name="departments" />   
+      <Stack.Screen name="departments" /> 
+      <Stack.Screen name="semesters" />  
     </Stack>
   );
 }

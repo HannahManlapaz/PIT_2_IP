@@ -247,7 +247,23 @@ export const borrowerGetBooksFiltered = (params = {}) => {
 };
 
 // ── Admin loans by semester ───────────────────────
-export const getLoansBySemester = (semester = "") =>
-  api.get(`/admin/loans-by-semester/${semester ? "?semester=" + semester : ""}`).then((r) => r.data);
+export const getLoansBySemester = (semesterId = "") =>
+  api.get(`/admin/loans-by-semester/${semesterId ? "?semester=" + semesterId : ""}`).then((r) => r.data);
+
+// ── Semesters ─────────────────────────────────────
+export const getSemesters = () =>
+  api.get("/semesters/").then((r) => r.data);
+
+export const createSemester = (data) =>
+  api.post("/semesters/", data).then((r) => r.data);
+
+export const updateSemester = (id, data) =>
+  api.put(`/semesters/${id}/`, data).then((r) => r.data);
+
+export const deleteSemester = (id) =>
+  api.delete(`/semesters/${id}/`);
+
+export const setActiveSemester = (id) =>
+  api.patch(`/semesters/${id}/set-active/`).then((r) => r.data);
 
 export default api;

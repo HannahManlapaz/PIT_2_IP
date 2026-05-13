@@ -25,6 +25,27 @@ class Department(models.Model):
 
     def __str__(self):
         return self.name
+    
+class Semester(models.Model):
+    SEMESTER_CHOICES = [
+        ('1st_sem', '1st Semester'),
+        ('2nd_sem', '2nd Semester'),
+        ('summer',  'Summer'),
+    ]
+
+    academic_year = models.CharField(max_length=20)         # e.g. "2024-2025"
+    semester_type = models.CharField(max_length=20, choices=SEMESTER_CHOICES)
+    start_date    = models.DateField()
+    end_date      = models.DateField()
+    is_active     = models.BooleanField(default=False)      # marks the current semester
+
+    class Meta:
+        unique_together = ('academic_year', 'semester_type')
+        ordering        = ['-academic_year', 'semester_type']
+
+    def __str__(self):
+        return f"{self.get_semester_type_display()} — {self.academic_year}"
+
 
 class Book(models.Model):
     title            = models.CharField(max_length=200)
@@ -34,8 +55,8 @@ class Book(models.Model):
     available        = models.BooleanField(default=True)
     cover_image      = models.ImageField(upload_to='book_covers/', null=True, blank=True)
     description      = models.TextField(blank=True, null=True)
-    category         = models.ForeignKey(Category, on_delete=models.SET_NULL, null=True, blank=True)    # ✅
-    department       = models.ForeignKey(Department, on_delete=models.SET_NULL, null=True, blank=True)  # ✅
+    category         = models.ForeignKey(Category, on_delete=models.SET_NULL, null=True, blank=True)    
+    department       = models.ForeignKey(Department, on_delete=models.SET_NULL, null=True, blank=True)  
 
     def __str__(self):
         return self.title
@@ -57,7 +78,7 @@ class Loan(models.Model):
     ]
 
     member                = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='loans')
-    semester              = models.CharField(max_length=20, choices=SEMESTER_CHOICES, default='1st_sem', blank=True)
+    semester              = models.ForeignKey('Semester', on_delete=models.SET_NULL, null=True, blank=True, related_name='loans')
     book                  = models.ForeignKey(Book, on_delete=models.CASCADE)
     loan_date             = models.DateField()
     due_date              = models.DateField(null=True, blank=True)

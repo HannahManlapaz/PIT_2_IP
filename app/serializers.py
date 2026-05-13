@@ -1,6 +1,6 @@
 # app/serializers.py
 from rest_framework import serializers
-from .models import Author, Book, Loan, Reservation, Category, Department
+from .models import Author, Book, Loan, Reservation, Category, Department, Semester
 from datetime import date
 from django.contrib.auth import get_user_model
 
@@ -22,6 +22,21 @@ class DepartmentSerializer(serializers.ModelSerializer):
     class Meta:
         model  = Department
         fields = '__all__'
+        
+class SemesterSerializer(serializers.ModelSerializer):
+    semester_type_display = serializers.SerializerMethodField()
+    loan_count            = serializers.SerializerMethodField()
+
+    class Meta:
+        model  = Semester
+        fields = ['id', 'academic_year', 'semester_type', 'semester_type_display',
+                  'start_date', 'end_date', 'is_active', 'loan_count']
+
+    def get_semester_type_display(self, obj):
+        return obj.get_semester_type_display()
+
+    def get_loan_count(self, obj):
+        return obj.loans.count()
 
 
 class BookSerializer(serializers.ModelSerializer):
@@ -61,6 +76,7 @@ class LoanSerializer(serializers.ModelSerializer):
     book_department  = serializers.SerializerMethodField() 
     overdue_days     = serializers.SerializerMethodField()
     verified_by_name = serializers.SerializerMethodField()
+    semester_label   = serializers.SerializerMethodField()
 
     class Meta:
         model  = Loan
@@ -69,10 +85,13 @@ class LoanSerializer(serializers.ModelSerializer):
             'book_category', 'book_department',
             'loan_date', 'due_date', 'return_date', 'return_requested_date',
             'return_verified_date', 'return_status', 'verified_by',
-            'verified_by_name', 'overdue_days', 'notes', 'semester'  
+            'verified_by_name', 'overdue_days', 'notes',
+            'semester', 'semester_label'
         ]
-        
         read_only_fields = ['return_verified_date', 'verified_by']
+
+    def get_semester_label(self, obj):
+        return str(obj.semester) if obj.semester else None
 
     def get_member_name(self, obj):
         return obj.member.name if obj.member else None

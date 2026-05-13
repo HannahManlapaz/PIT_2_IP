@@ -56,5 +56,10 @@ urlpatterns = [
 
     # Loans by semester
     path('admin/loans-by-semester/', views.AdminLoansBySemesterView.as_view(), name='admin-loans-by-semester'),
+    
+    # Semesters
+    path('semesters/',                   views.SemesterListCreateView.as_view(), name='semester-list'),
+    path('semesters/<int:pk>/',          views.SemesterDetailView.as_view(),     name='semester-detail'),
+    path('semesters/<int:pk>/set-active/', views.SemesterSetActiveView.as_view(), name='semester-set-active'),
 
 ]

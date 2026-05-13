@@ -5,7 +5,7 @@ import {
   ActivityIndicator, StyleSheet, ScrollView, LayoutAnimation, Platform, UIManager,
 } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
-import { getLoans, createLoan, updateLoan, deleteLoan, getMembers, getBooks, verifyReturn, rejectReturn, getLoansBySemester } from '../../lib/api';
+import { getLoans, createLoan, updateLoan, deleteLoan, getMembers, getBooks, verifyReturn, rejectReturn, getLoansBySemester, getSemesters } from '../../lib/api';
 import BottomSheetModal, { ModalCancelButton, ModalSubmitButton } from '../../lib/BottomSheetModal';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -78,11 +78,18 @@ const LoanTable = () => {
   const [saving,        setSaving]        = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
   const [collapsedMembers, setCollapsedMembers] = useState(new Set());
+  const [semesterFilter, setSemesterFilter] = useState('');
+  const [semesters, setSemesters] = useState([]);
+
 
   const load = async () => {
     try {
       setLoading(true);
-      const [l, m, b] = await Promise.all([getLoansBySemester(semester), getMembers(), getBooks()]);
+      const [l, m, b, sems] = await Promise.all([
+        getLoansBySemester(semesterFilter),
+        getMembers(), getBooks(), getSemesters(),
+      ]);
+      setSemesters(sems);
       setLoans(Array.isArray(l) ? l : []);
       setMembers(Array.isArray(m) ? m : []);
       setBooks(Array.isArray(b) ? b : []);
@@ -248,26 +255,26 @@ const LoanTable = () => {
       />
 
       {/* Semester filter */}
-      <View style={s.semesterRow}>
-        <Text style={s.semesterLabel}>Semester:</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{ gap: 6, flexDirection: "row" }}>
-          {[
-            { key: '',        label: 'All' },
-            { key: '1st_sem', label: '1st Sem' },
-            { key: '2nd_sem', label: '2nd Sem' },
-            { key: 'summer',  label: 'Summer' },
-          ].map(({ key, label }) => (
-            <TouchableOpacity
-              key={key}
-              style={[s.filterBtn, semester === key && { backgroundColor: C.red, borderColor: C.red }]}
-              onPress={() => setSemester(key)}
-            >
-              <Text style={[s.filterBtnText, semester === key && { color: C.white }]}>{label}</Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-      </View>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false}
+        contentContainerStyle={{ gap: 6, flexDirection: "row" }}>
+        <TouchableOpacity
+          style={[s.filterBtn, semesterFilter === '' && { backgroundColor: C.red, borderColor: C.red }]}
+          onPress={() => setSemesterFilter('')}
+        >
+          <Text style={[s.filterBtnText, semesterFilter === '' && { color: C.white }]}>All</Text>
+        </TouchableOpacity>
+        {semesters.map(sem => (
+          <TouchableOpacity
+            key={sem.id}
+            style={[s.filterBtn, semesterFilter === String(sem.id) && { backgroundColor: C.red, borderColor: C.red }]}
+            onPress={() => setSemesterFilter(String(sem.id))}
+          >
+            <Text style={[s.filterBtnText, semesterFilter === String(sem.id) && { color: C.white }]}>
+              {sem.semester_type_display} {sem.academic_year}{sem.is_active ? ' ★' : ''}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
 
       {/* ── Filter tabs ── */}
       <View style={s.filterWrap}>
@@ -461,14 +468,20 @@ const LoanTable = () => {
           <Text style={s.label}>Semester</Text>
           <View style={s.pickerWrap}>
             <Picker
-              selectedValue={form.semester ?? '1st_sem'}
-              onValueChange={v => setForm({ ...form, semester: v })}
+              selectedValue={form.semester ?? null}
+              onValueChange={v => setForm({ ...form, semester: v || null })}
               style={s.picker}>
-              <Picker.Item label="1st Semester" value="1st_sem" />
-              <Picker.Item label="2nd Semester" value="2nd_sem" />
-              <Picker.Item label="Summer"       value="summer"  />
+              <Picker.Item label="No semester assigned" value={null} />
+              {semesters.map(sem => (
+                <Picker.Item
+                  key={sem.id}
+                  label={`${sem.semester_type_display} — A.Y. ${sem.academic_year}${sem.is_active ? ' ★' : ''}`}
+                  value={sem.id}
+                />
+              ))}
             </Picker>
           </View>
+          <Text style={s.hint}>★ = currently active semester</Text>
         </View>
 
         {/* Book Picker ── */}

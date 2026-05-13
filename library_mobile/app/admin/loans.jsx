@@ -2,16 +2,22 @@
 import React, { useEffect, useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, FlatList,
-  ActivityIndicator, StyleSheet, ScrollView, LayoutAnimation, Platform, UIManager,
+  ActivityIndicator, StyleSheet, ScrollView, Modal,
+  LayoutAnimation, Platform, UIManager,
 } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
-import { getLoans, createLoan, updateLoan, deleteLoan, getMembers, getBooks, verifyReturn, rejectReturn, getLoansBySemester, getSemesters } from '../../lib/api';
+import {
+  createLoan, updateLoan, deleteLoan,
+  getMembers, getBooks, verifyReturn, rejectReturn,
+  getLoansBySemester, getSemesters,
+} from '../../lib/api';
 import BottomSheetModal, { ModalCancelButton, ModalSubmitButton } from '../../lib/BottomSheetModal';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 
+// ── Colour tokens ─────────────────────────────────────────────────────────────
 const C = {
   bg:       '#f5f0e8',
   cream:    '#ede5d0',
@@ -37,13 +43,24 @@ const C = {
   yellow300:'#fde047',
   yellow600:'#ca8a04',
   yellow700:'#a16207',
+  purple50: '#fdf4ff',
+  purple300:'#e9d5ff',
+  purple700:'#7e22ce',
 };
 
 const today = () => new Date().toISOString().split('T')[0];
-const emptyLoan = () => ({ member: 0, book: 0, loan_date: today(), due_date: null, return_date: null, semester: '1st_sem' });
+const emptyLoan = () => {
+  const activeSem = semesters.find(s => s.is_active);
+  return {
+    member: 0, book: 0, loan_date: today(),
+    due_date: null, return_date: null,
+    semester: activeSem?.id ?? null,
+  };
+};
+
 const FEE_PER_DAY = 20;
 
-// ── Date field — plain TextInput (works on web + native) ──────────────────────
+// ── Simple date input ─────────────────────────────────────────────────────────
 const DateField = ({ label, value, onChange, hint }) => (
   <View style={s.fieldWrap}>
     <Text style={s.label}>{label}</Text>
@@ -58,30 +75,53 @@ const DateField = ({ label, value, onChange, hint }) => (
   </View>
 );
 
+// ── Status badge ──────────────────────────────────────────────────────────────
+const StatusBadge = ({ loan, overdueFee: fee }) => {
+  if (loan.return_verified_date)
+    return <View style={[s.badge, { backgroundColor: C.green50, borderColor: C.green300 }]}><Text style={[s.badgeText, { color: C.green700 }]}>Returned</Text></View>;
+  if (loan.return_status === 'pending' && loan.return_requested_date && !loan.return_verified_date)
+    return <View style={[s.badge, { backgroundColor: C.yellow100, borderColor: C.yellow300 }]}><Text style={[s.badgeText, { color: C.yellow700 }]}>Pending</Text></View>;
+  if ((loan.overdue_days ?? 0) > 0 && !loan.return_verified_date)
+    return (
+      <View style={{ gap: 1 }}>
+        <View style={[s.badge, { backgroundColor: C.red50, borderColor: C.red300 }]}>
+          <Text style={[s.badgeText, { color: C.red700 }]}>Overdue {loan.overdue_days}d</Text>
+        </View>
+        <Text style={[s.badgeText, { color: C.red600, marginLeft: 2 }]}>₱{fee.toLocaleString()}</Text>
+      </View>
+    );
+  return <View style={[s.badge, { backgroundColor: C.blue50, borderColor: C.blue300 }]}><Text style={[s.badgeText, { color: C.blue700 }]}>Active</Text></View>;
+};
+
 // ── Main component ─────────────────────────────────────────────────────────────
 const LoanTable = () => {
-  const [loans,         setLoans]         = useState([]);
-  const [members,       setMembers]       = useState([]);
-  const [books,         setBooks]         = useState([]);
-  const [loading,       setLoading]       = useState(true);
-  const [error,         setError]         = useState('');
-  const [search,        setSearch]        = useState('');
-  const [filter,        setFilter]        = useState('all');
-  const [showForm,      setShowForm]      = useState(false);
-  const [editing,       setEditing]       = useState(null);
-  const [confirmDelete, setConfirmDelete] = useState(null);
-  const [verifyModal,   setVerifyModal]   = useState(null);
-  const [verifyNotes,   setVerifyNotes]   = useState('');
-  const [rejectModal,   setRejectModal]   = useState(null);
-  const [rejectReason,  setRejectReason]  = useState('');
-  const [form,          setForm]          = useState(emptyLoan());
-  const [saving,        setSaving]        = useState(false);
-  const [actionLoading, setActionLoading] = useState(false);
-  const [collapsedMembers, setCollapsedMembers] = useState(new Set());
-  const [semesterFilter, setSemesterFilter] = useState('');
-  const [semesters, setSemesters] = useState([]);
+  const [loans,          setLoans]          = useState([]);
+  const [members,        setMembers]        = useState([]);
+  const [books,          setBooks]          = useState([]);
+  const [semesters,      setSemesters]      = useState([]);
+  const [loading,        setLoading]        = useState(true);
+  const [error,          setError]          = useState('');
+  const [search,         setSearch]         = useState('');
+  const [showForm,       setShowForm]       = useState(false);
+  const [editing,        setEditing]        = useState(null);
+  const [confirmDelete,  setConfirmDelete]  = useState(null);
+  const [verifyModal,    setVerifyModal]    = useState(null);
+  const [verifyNotes,    setVerifyNotes]    = useState('');
+  const [rejectModal,    setRejectModal]    = useState(null);
+  const [rejectReason,   setRejectReason]   = useState('');
+  const [form,           setForm]           = useState(emptyLoan());
+  const [saving,         setSaving]         = useState(false);
+  const [actionLoading,  setActionLoading]  = useState(false);
 
+  // ── Filter state ────────────────────────────────────────────────────────────
+  const [showFilterModal, setShowFilterModal] = useState(false);
+  const [statusFilter,    setStatusFilter]    = useState('all');
+  const [semesterFilter,  setSemesterFilter]  = useState('');
+  // pending filters (inside drawer before Apply)
+  const [draftStatus,     setDraftStatus]     = useState('all');
+  const [draftSemester,   setDraftSemester]   = useState('');
 
+  // ── Data loading ────────────────────────────────────────────────────────────
   const load = async () => {
     try {
       setLoading(true);
@@ -89,43 +129,61 @@ const LoanTable = () => {
         getLoansBySemester(semesterFilter),
         getMembers(), getBooks(), getSemesters(),
       ]);
-      setSemesters(sems);
       setLoans(Array.isArray(l) ? l : []);
       setMembers(Array.isArray(m) ? m : []);
       setBooks(Array.isArray(b) ? b : []);
-      setCollapsedMembers(new Set((Array.isArray(l) ? l : []).map(loan => loan.member)));
+      setSemesters(Array.isArray(sems) ? sems : []);
     } catch { setError('Failed to load loans.'); }
     finally { setLoading(false); }
   };
-  useEffect(() => { load(); }, [semester]);
 
+  useEffect(() => { load(); }, [semesterFilter]);
+
+  // ── Helpers ─────────────────────────────────────────────────────────────────
+  const memberName  = (id) => members.find(m => m.id === id)?.name ?? '—';
+  const bookTitle   = (id) => books.find(b => b.id === id)?.title ?? '—';
+  const isOverdue   = (l)  => !l.return_verified_date && (l.overdue_days ?? 0) > 0;
+  const isPending   = (l)  => !!l.return_requested_date && !l.return_verified_date && l.return_status === 'pending';
+  const overdueFee  = (l)  => (l.overdue_days ?? 0) * FEE_PER_DAY;
+
+  const overdueCount = loans.filter(isOverdue).length;
+  const pendingCount = loans.filter(isPending).length;
+
+  // active filter count (for badge on filter button)
+  const activeFilters = (statusFilter !== 'all' ? 1 : 0) + (semesterFilter !== '' ? 1 : 0);
+
+  // ── Filtered list ────────────────────────────────────────────────────────────
+  const filtered = loans
+    .filter(l => {
+      if (statusFilter === 'active')   return !l.return_verified_date && !isOverdue(l) && !isPending(l);
+      if (statusFilter === 'returned') return !!l.return_verified_date;
+      if (statusFilter === 'overdue')  return isOverdue(l);
+      if (statusFilter === 'pending')  return isPending(l);
+      return true;
+    })
+    .filter(l =>
+      memberName(l.member).toLowerCase().includes(search.toLowerCase()) ||
+      bookTitle(l.book).toLowerCase().includes(search.toLowerCase())
+    );
+
+  // ── Handlers ────────────────────────────────────────────────────────────────
   const openCreate = () => { setForm(emptyLoan()); setEditing(null); setError(''); setShowForm(true); };
-  const openEdit = (loan) => {
-    setForm({ member: loan.member, book: loan.book, loan_date: loan.loan_date, due_date: loan.due_date, return_date: loan.return_date });
+  const openEdit   = (loan) => {
+    setForm({
+      member: loan.member, book: loan.book,
+      loan_date: loan.loan_date, due_date: loan.due_date,
+      return_date: loan.return_date,
+      semester: loan.semester ?? null,
+    });
     setEditing(loan); setError(''); setShowForm(true);
-  };
-
-  const handleVerify = async () => {
-    if (!verifyModal) return;
-    setActionLoading(true);
-    try { await verifyReturn(verifyModal.id, verifyNotes); setVerifyModal(null); setVerifyNotes(''); await load(); }
-    catch (err) { setError(err?.message || 'Failed to verify return.'); }
-    finally { setActionLoading(false); }
-  };
-
-  const handleReject = async () => {
-    if (!rejectModal || !rejectReason.trim()) return;
-    setActionLoading(true);
-    try { await rejectReturn(rejectModal.id, rejectReason); setRejectModal(null); setRejectReason(''); await load(); }
-    catch (err) { setError(err?.message || 'Failed to reject return.'); }
-    finally { setActionLoading(false); }
   };
 
   const handleSave = async () => {
     if (!form.member || !form.book) { setError('Member and book are required.'); return; }
     try {
       setSaving(true); setError('');
-      if (editing) await updateLoan(editing.id, form); else await createLoan(form);
+      if (editing) await updateLoan(editing.id, form);
+      else         await createLoan(form);
       setShowForm(false); await load();
     } catch (e) { setError(e?.message || 'Failed to save loan.'); }
     finally { setSaving(false); }
@@ -137,74 +195,142 @@ const LoanTable = () => {
     catch { setError('Failed to delete loan.'); }
   };
 
-  const memberName = (id) => members.find(m => m.id === id)?.name ?? '—';
-  const bookTitle  = (id) => books.find(b => b.id === id)?.title ?? '—';
-  const isOverdue  = (loan) => !loan.return_verified_date && (loan.overdue_days ?? 0) > 0;
-  const isPending  = (loan) => !!loan.return_requested_date && !loan.return_verified_date && loan.return_status === 'pending';
-  const overdueFee = (loan) => (loan.overdue_days ?? 0) * FEE_PER_DAY;
-
-  const filtered = loans
-    .filter(l => {
-      if (filter === 'active')   return !l.return_verified_date && !isOverdue(l) && !isPending(l);
-      if (filter === 'returned') return !!l.return_verified_date;
-      if (filter === 'overdue')  return isOverdue(l);
-      if (filter === 'pending')  return isPending(l);
-      return true;
-    })
-    .filter(l =>
-      memberName(l.member).toLowerCase().includes(search.toLowerCase()) ||
-      bookTitle(l.book).toLowerCase().includes(search.toLowerCase())
-    );
-
-  const grouped = filtered.reduce((acc, loan) => {
-    const g = acc.find(x => x.memberId === loan.member);
-    if (g) g.loans.push(loan);
-    else acc.push({ memberId: loan.member, loans: [loan] });
-    return acc;
-  }, []);
-
-  const toggleCollapse = (memberId) => {
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-    setCollapsedMembers(prev => {
-      const next = new Set(prev);
-      next.has(memberId) ? next.delete(memberId) : next.add(memberId);
-      return next;
-    });
+  const handleVerify = async () => {
+    if (!verifyModal) return;
+    setActionLoading(true);
+    try { await verifyReturn(verifyModal.id, verifyNotes); setVerifyModal(null); setVerifyNotes(''); await load(); }
+    catch (e) { setError(e?.message || 'Failed to verify return.'); }
+    finally { setActionLoading(false); }
   };
 
-  const overdueCount = loans.filter(isOverdue).length;
-  const pendingCount = loans.filter(isPending).length;
+  const handleReject = async () => {
+    if (!rejectModal || !rejectReason.trim()) return;
+    setActionLoading(true);
+    try { await rejectReturn(rejectModal.id, rejectReason); setRejectModal(null); setRejectReason(''); await load(); }
+    catch (e) { setError(e?.message || 'Failed to reject return.'); }
+    finally { setActionLoading(false); }
+  };
 
-  const StatusBadge = ({ loan }) => {
+  const applyFilters = () => {
+    setStatusFilter(draftStatus);
+    setSemesterFilter(draftSemester);
+    setShowFilterModal(false);
+  };
+
+  const clearFilters = () => {
+    setDraftStatus('all');
+    setDraftSemester('');
+    setStatusFilter('all');
+    setSemesterFilter('');
+    setShowFilterModal(false);
+  };
+
+  const openFilterModal = () => {
+    // seed drafts with current applied values
+    setDraftStatus(statusFilter);
+    setDraftSemester(semesterFilter);
+    setShowFilterModal(true);
+  };
+
+  // ── Loan card (flat, no grouping — shows ALL details) ─────────────────────
+  const renderLoan = ({ item: loan }) => {
     const overdue = isOverdue(loan);
     const pending = isPending(loan);
-    if (loan.return_verified_date) return (
-      <View style={[s.badge, { backgroundColor: C.green50, borderColor: C.green300 }]}>
-        <Text style={[s.badgeText, { color: C.green700 }]}>Returned</Text>
-      </View>
-    );
-    if (pending) return (
-      <View style={[s.badge, { backgroundColor: C.yellow100, borderColor: C.yellow300 }]}>
-        <Text style={[s.badgeText, { color: C.yellow700 }]}>Pending</Text>
-      </View>
-    );
-    if (overdue) return (
-      <View style={{ gap: 2 }}>
-        <View style={[s.badge, { backgroundColor: C.red50, borderColor: C.red300 }]}>
-          <Text style={[s.badgeText, { color: C.red700 }]}>Overdue {loan.overdue_days}d</Text>
-        </View>
-        <Text style={[s.badgeText, { color: C.red600, paddingLeft: 2 }]}>
-          Fee: ₱{overdueFee(loan).toLocaleString()}
-        </Text>
-      </View>
-    );
+    const fee     = overdueFee(loan);
+
+    const cardBg = overdue ? '#fff8f8' : pending ? C.yellow50 : C.white;
+    const leftBar = overdue ? C.red700 : pending ? C.yellow600 : loan.return_verified_date ? C.green700 : C.blue700;
+
     return (
-      <View style={[s.badge, { backgroundColor: C.blue50, borderColor: C.blue300 }]}>
-        <Text style={[s.badgeText, { color: C.blue700 }]}>Active</Text>
+      <View style={[s.loanCard, { backgroundColor: cardBg, borderLeftColor: leftBar }]}>
+        {/* ── Row 1: Book title + Status ── */}
+        <View style={s.loanCardTop}>
+          <Text style={s.loanBookTitle} numberOfLines={2}>{bookTitle(loan.book)}</Text>
+          <StatusBadge loan={loan} overdueFee={fee} />
+        </View>
+
+        {/* ── Row 2: Member ── */}
+        <View style={s.loanDetailRow}>
+          <Text style={s.loanDetailIcon}>👤</Text>
+          <Text style={s.loanDetailLabel}>Borrower</Text>
+          <Text style={s.loanDetailValue}>{loan.member_name ?? memberName(loan.member)}</Text>
+        </View>
+
+        {/* ── Row 3: Dates ── */}
+        <View style={s.loanDatesRow}>
+          <View style={s.loanDateItem}>
+            <Text style={s.loanDateLabel}>LOANED</Text>
+            <Text style={s.loanDateValue}>{loan.loan_date ?? '—'}</Text>
+          </View>
+          <View style={s.loanDateDivider} />
+          <View style={s.loanDateItem}>
+            <Text style={[s.loanDateLabel, overdue && { color: C.red700 }]}>DUE</Text>
+            <Text style={[s.loanDateValue, overdue && { color: C.red700, fontWeight: '700' }]}>
+              {loan.due_date ?? '—'}
+            </Text>
+          </View>
+          <View style={s.loanDateDivider} />
+          <View style={s.loanDateItem}>
+            <Text style={s.loanDateLabel}>RETURNED</Text>
+            <Text style={s.loanDateValue}>
+              {loan.return_verified_date
+                ? loan.return_verified_date
+                : pending ? 'Pending…'
+                : '—'}
+            </Text>
+          </View>
+        </View>
+
+        {/* ── Row 4: Semester + Overdue fee ── */}
+        {(!!loan.semester_label || overdue) && (
+          <View style={s.loanExtraRow}>
+            {!!loan.semester_label && (
+              <View style={s.semesterTag}>
+                <Text style={s.semesterTagText}>🗓 {loan.semester_label}</Text>
+              </View>
+            )}
+            {overdue && fee > 0 && (
+              <View style={s.feeTag}>
+                <Text style={s.feeTagText}>Fee: ₱{fee.toLocaleString()}</Text>
+              </View>
+            )}
+          </View>
+        )}
+
+        {/* ── Row 5: Actions ── */}
+        <View style={s.loanActions}>
+          {pending && !loan.return_verified_date && (
+            <>
+              <TouchableOpacity
+                style={[s.actionBtn, { borderColor: C.green300, backgroundColor: C.green50 }]}
+                onPress={() => { setVerifyModal(loan); setVerifyNotes(''); }}>
+                <Text style={[s.actionBtnText, { color: C.green700 }]}>✓ Verify Return</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[s.actionBtn, { borderColor: C.red300, backgroundColor: C.red50 }]}
+                onPress={() => { setRejectModal(loan); setRejectReason(''); }}>
+                <Text style={[s.actionBtnText, { color: C.red700 }]}>✕ Reject</Text>
+              </TouchableOpacity>
+            </>
+          )}
+          {!loan.return_verified_date && !pending && (
+            <TouchableOpacity
+              style={[s.actionBtn, { borderColor: C.blue300 }]}
+              onPress={() => openEdit(loan)}>
+              <Text style={[s.actionBtnText, { color: C.blue700 }]}>Edit</Text>
+            </TouchableOpacity>
+          )}
+          <TouchableOpacity
+            style={[s.actionBtn, { borderColor: C.red300 }]}
+            onPress={() => setConfirmDelete(loan)}>
+            <Text style={[s.actionBtnText, { color: C.red700 }]}>Delete</Text>
+          </TouchableOpacity>
+        </View>
       </View>
     );
   };
 
+  // ── Loading ──────────────────────────────────────────────────────────────────
   if (loading) return (
     <View style={s.centerState}>
       <ActivityIndicator color={C.red} size="large" />
@@ -212,31 +338,32 @@ const LoanTable = () => {
     </View>
   );
 
+  // ── Render ───────────────────────────────────────────────────────────────────
   return (
     <View style={s.container}>
 
-      {/* Header */}
+      {/* ── Header ── */}
       <View style={s.header}>
         <View style={s.headerAccent} />
         <View style={{ flex: 1 }}>
           <Text style={s.pageTitle}>Loans</Text>
           <Text style={s.pageSubtitle}>Track book borrowing and returns</Text>
         </View>
-        <View style={s.headerBadges}>
+        <View style={s.headerRight}>
           {pendingCount > 0 && (
-            <View style={[s.badge, { backgroundColor: C.yellow100, borderColor: C.yellow300 }]}>
-              <Text style={[s.badgeText, { color: C.yellow700 }]}>⏳ {pendingCount}</Text>
+            <View style={[s.headerBadge, { backgroundColor: C.yellow100, borderColor: C.yellow300 }]}>
+              <Text style={[s.headerBadgeText, { color: C.yellow700 }]}>⏳ {pendingCount}</Text>
             </View>
           )}
           {overdueCount > 0 && (
-            <View style={[s.badge, { backgroundColor: C.red50, borderColor: C.red300 }]}>
-              <Text style={[s.badgeText, { color: C.red700 }]}>⚠️ {overdueCount}</Text>
+            <View style={[s.headerBadge, { backgroundColor: C.red50, borderColor: C.red300 }]}>
+              <Text style={[s.headerBadgeText, { color: C.red700 }]}>⚠️ {overdueCount}</Text>
             </View>
           )}
+          <TouchableOpacity style={s.addBtn} onPress={openCreate}>
+            <Text style={s.addBtnText}>＋ New</Text>
+          </TouchableOpacity>
         </View>
-        <TouchableOpacity style={s.addBtn} onPress={openCreate}>
-          <Text style={s.addBtnText}>＋ Loan</Text>
-        </TouchableOpacity>
       </View>
 
       {!!error && (
@@ -245,193 +372,164 @@ const LoanTable = () => {
         </View>
       )}
 
-      {/* Search */}
-      <TextInput
-        style={[s.searchInput, { marginBottom: 10 }]}
-        value={search} onChangeText={setSearch}
-        placeholder="Search by member or book…"
-        placeholderTextColor={C.textMuted}
-        autoCapitalize="none"
-      />
-
-      {/* Semester filter */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false}
-        contentContainerStyle={{ gap: 6, flexDirection: "row" }}>
+      {/* ── Search + Filter button ── */}
+      <View style={s.searchRow}>
+        <TextInput
+          style={s.searchInput}
+          value={search} onChangeText={setSearch}
+          placeholder="Search by member or book…"
+          placeholderTextColor={C.textMuted}
+          autoCapitalize="none"
+        />
         <TouchableOpacity
-          style={[s.filterBtn, semesterFilter === '' && { backgroundColor: C.red, borderColor: C.red }]}
-          onPress={() => setSemesterFilter('')}
+          style={[s.filterBtn, activeFilters > 0 && s.filterBtnActive]}
+          onPress={openFilterModal}
         >
-          <Text style={[s.filterBtnText, semesterFilter === '' && { color: C.white }]}>All</Text>
+          <Text style={[s.filterBtnIcon, activeFilters > 0 && { color: C.white }]}>⚙</Text>
+          <Text style={[s.filterBtnText, activeFilters > 0 && { color: C.white }]}>
+            Filter{activeFilters > 0 ? ` (${activeFilters})` : ''}
+          </Text>
         </TouchableOpacity>
-        {semesters.map(sem => (
-          <TouchableOpacity
-            key={sem.id}
-            style={[s.filterBtn, semesterFilter === String(sem.id) && { backgroundColor: C.red, borderColor: C.red }]}
-            onPress={() => setSemesterFilter(String(sem.id))}
-          >
-            <Text style={[s.filterBtnText, semesterFilter === String(sem.id) && { color: C.white }]}>
-              {sem.semester_type_display} {sem.academic_year}{sem.is_active ? ' ★' : ''}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
-
-      {/* ── Filter tabs ── */}
-      <View style={s.filterWrap}>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={s.filterRow}
-          style={s.filterScroll}
-        >
-          {[
-            { key: 'all',      label: 'All' },
-            { key: 'active',   label: 'Active' },
-            { key: 'pending',  label: `Pending${pendingCount > 0 ? ` (${pendingCount})` : ''}` },
-            { key: 'overdue',  label: `Overdue${overdueCount > 0 ? ` (${overdueCount})` : ''}` },
-            { key: 'returned', label: 'Returned' },
-          ].map(({ key, label }) => {
-            const active = filter === key;
-            const activeBg =
-              key === 'overdue' ? C.red700 :
-              key === 'pending' ? C.yellow600 : C.red;
-            return (
-              <TouchableOpacity
-                key={key}
-                style={[s.filterBtn, active && { backgroundColor: activeBg, borderColor: activeBg }]}
-                onPress={() => setFilter(key)}
-              >
-                <Text style={[s.filterBtnText, active && { color: C.white }]}>{label}</Text>
-              </TouchableOpacity>
-            );
-          })}
-        </ScrollView>
-        <Text style={s.recordCount}>
-          {filtered.length} record{filtered.length !== 1 ? 's' : ''}
-        </Text>
       </View>
 
-      {/* Grouped list */}
-      {grouped.length === 0 ? (
+      {/* ── Active filter chips ── */}
+      {(statusFilter !== 'all' || semesterFilter !== '') && (
+        <View style={s.activeChipsRow}>
+          {statusFilter !== 'all' && (
+            <View style={s.chip}>
+              <Text style={s.chipText}>{statusFilter.charAt(0).toUpperCase() + statusFilter.slice(1)}</Text>
+              <TouchableOpacity onPress={() => setStatusFilter('all')} hitSlop={8}>
+                <Text style={s.chipX}>✕</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+          {semesterFilter !== '' && (
+            <View style={s.chip}>
+              <Text style={s.chipText}>
+                {semesters.find(s => String(s.id) === semesterFilter)?.semester_type_display ?? 'Semester'}
+              </Text>
+              <TouchableOpacity onPress={() => setSemesterFilter('')} hitSlop={8}>
+                <Text style={s.chipX}>✕</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+          <TouchableOpacity onPress={clearFilters}>
+            <Text style={s.clearAllText}>Clear all</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {/* ── Record count ── */}
+      <Text style={s.recordCount}>
+        {filtered.length} record{filtered.length !== 1 ? 's' : ''}
+      </Text>
+
+      {/* ── Loan list ── */}
+      {filtered.length === 0 ? (
         <View style={s.emptyState}>
           <Text style={s.emptyEmoji}>🔖</Text>
           <Text style={s.emptyTitle}>No loan records found</Text>
-          <Text style={s.emptyBody}>Create a new loan to get started.</Text>
+          <Text style={s.emptyBody}>
+            {activeFilters > 0 ? 'Try adjusting your filters.' : 'Create a new loan to get started.'}
+          </Text>
         </View>
       ) : (
         <FlatList
-          data={grouped}
-          keyExtractor={item => String(item.memberId)}
+          data={filtered}
+          keyExtractor={item => String(item.id)}
+          renderItem={renderLoan}
+          contentContainerStyle={s.listContent}
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingBottom: 32 }}
-          renderItem={({ item: { memberId, loans: memberLoans } }) => {
-            const isCollapsed = collapsedMembers.has(memberId);
-            const hasOverdue  = memberLoans.some(isOverdue);
-            const hasPending  = memberLoans.some(isPending);
-            const totalFee    = memberLoans.filter(isOverdue).reduce((sum, l) => sum + overdueFee(l), 0);
-            const name        = memberLoans[0].member_name ?? memberName(memberId);
-
-            return (
-              <View style={s.group}>
-                <TouchableOpacity
-                  style={[
-                    s.groupHeader,
-                    hasOverdue ? { backgroundColor: '#fee2e2' } :
-                    hasPending ? { backgroundColor: C.yellow50 } :
-                    { backgroundColor: C.cream },
-                  ]}
-                  onPress={() => toggleCollapse(memberId)}
-                  activeOpacity={0.7}
-                >
-                  <Text style={s.groupChevron}>{isCollapsed ? '▶' : '▼'}</Text>
-                  <View style={s.groupAvatar}>
-                    <Text style={s.groupAvatarText}>{name.charAt(0).toUpperCase()}</Text>
-                  </View>
-                  <Text style={s.groupName} numberOfLines={1}>{name}</Text>
-                  <Text style={s.groupCount}>{memberLoans.length}</Text>
-                  {hasOverdue && (
-                    <View style={[s.badge, { backgroundColor: C.red50, borderColor: C.red300, marginLeft: 4 }]}>
-                      <Text style={[s.badgeText, { color: C.red700 }]}>⚠️</Text>
-                    </View>
-                  )}
-                  {hasPending && (
-                    <View style={[s.badge, { backgroundColor: C.yellow100, borderColor: C.yellow300, marginLeft: 4 }]}>
-                      <Text style={[s.badgeText, { color: C.yellow700 }]}>⏳</Text>
-                    </View>
-                  )}
-                  {hasOverdue && totalFee > 0 && (
-                    <View style={[s.badge, { backgroundColor: '#fecaca', borderColor: C.red300, marginLeft: 'auto' }]}>
-                      <Text style={[s.badgeText, { color: C.red700, fontWeight: '700' }]}>₱{totalFee.toLocaleString()}</Text>
-                    </View>
-                  )}
-                </TouchableOpacity>
-
-                {!isCollapsed && memberLoans.map((loan, idx) => {
-                  const overdue = isOverdue(loan);
-                  const pending = isPending(loan);
-                  const isLast  = idx === memberLoans.length - 1;
-                  return (
-                    <View key={loan.id} style={[
-                      s.loanRow, isLast && s.loanRowLast,
-                      overdue ? { backgroundColor: C.red50 } :
-                      pending ? { backgroundColor: C.yellow50 } :
-                      { backgroundColor: C.white },
-                    ]}>
-                      <View style={s.loanRowTop}>
-                        <Text style={s.loanTreeChar}>{isLast ? '└─' : '├─'}</Text>
-                        <Text style={s.loanBookTitle} numberOfLines={1}>{bookTitle(loan.book)}</Text>
-                        <StatusBadge loan={loan} />
-                      </View>
-                      <View style={s.loanMeta}>
-                        <Text style={s.loanMetaText}>Loan: {loan.loan_date}</Text>
-                        <Text style={[s.loanMetaText, overdue && { color: C.red600, fontWeight: '700' }]}>
-                          Due: {loan.due_date ?? '—'}
-                        </Text>
-                        <Text style={s.loanMetaText}>
-                          {loan.return_verified_date
-                            ? `Returned: ${loan.return_verified_date}`
-                            : pending ? 'Pending verification'
-                            : 'Not yet returned'}
-                        </Text>
-                      </View>
-                      <View style={s.loanActions}>
-                        {pending && !loan.return_verified_date && (
-                          <>
-                            <TouchableOpacity
-                              style={[s.actionBtn, { borderColor: C.green300 }]}
-                              onPress={() => { setVerifyModal(loan); setVerifyNotes(''); }}>
-                              <Text style={[s.actionBtnText, { color: C.green700 }]}>✓ Verify</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                              style={[s.actionBtn, { borderColor: C.red300 }]}
-                              onPress={() => { setRejectModal(loan); setRejectReason(''); }}>
-                              <Text style={[s.actionBtnText, { color: C.red700 }]}>✕ Reject</Text>
-                            </TouchableOpacity>
-                          </>
-                        )}
-                        {!loan.return_verified_date && !pending && (
-                          <TouchableOpacity
-                            style={[s.actionBtn, { borderColor: C.blue300 }]}
-                            onPress={() => openEdit(loan)}>
-                            <Text style={[s.actionBtnText, { color: C.blue700 }]}>Edit</Text>
-                          </TouchableOpacity>
-                        )}
-                        <TouchableOpacity
-                          style={[s.actionBtn, { borderColor: C.red300 }]}
-                          onPress={() => setConfirmDelete(loan)}>
-                          <Text style={[s.actionBtnText, { color: C.red700 }]}>Delete</Text>
-                        </TouchableOpacity>
-                      </View>
-                    </View>
-                  );
-                })}
-              </View>
-            );
-          }}
         />
       )}
 
-      {/* ── New / Edit Loan Modal ── */}
+      {/* ══════════════════════════════════════════════════
+          FILTER DRAWER MODAL
+      ══════════════════════════════════════════════════ */}
+      <Modal
+        visible={showFilterModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowFilterModal(false)}
+      >
+        <View style={s.drawerOverlay}>
+          <TouchableOpacity style={StyleSheet.absoluteFill} onPress={() => setShowFilterModal(false)} />
+          <View style={s.drawerSheet}>
+            {/* Handle */}
+            <View style={s.drawerHandle} />
+
+            <View style={s.drawerHeader}>
+              <Text style={s.drawerTitle}>Filter Loans</Text>
+              <TouchableOpacity onPress={clearFilters}>
+                <Text style={s.drawerClearText}>Clear all</Text>
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.drawerBody}>
+
+              {/* Status filter */}
+              <Text style={s.drawerSectionLabel}>Status</Text>
+              <View style={s.drawerChipRow}>
+                {[
+                  { key: 'all',      label: 'All Loans' },
+                  { key: 'active',   label: 'Active' },
+                  { key: 'pending',  label: `Pending${pendingCount > 0 ? ` (${pendingCount})` : ''}` },
+                  { key: 'overdue',  label: `Overdue${overdueCount > 0 ? ` (${overdueCount})` : ''}` },
+                  { key: 'returned', label: 'Returned' },
+                ].map(({ key, label }) => (
+                  <TouchableOpacity
+                    key={key}
+                    style={[s.drawerChip, draftStatus === key && s.drawerChipActive]}
+                    onPress={() => setDraftStatus(key)}
+                  >
+                    <Text style={[s.drawerChipText, draftStatus === key && s.drawerChipTextActive]}>
+                      {label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              {/* Semester filter */}
+              <Text style={[s.drawerSectionLabel, { marginTop: 20 }]}>Semester</Text>
+              {semesters.length === 0 ? (
+                <Text style={s.drawerNoData}>No semesters created yet. Go to Admin → Semesters to add one.</Text>
+              ) : (
+                <View style={s.drawerChipRow}>
+                  <TouchableOpacity
+                    style={[s.drawerChip, draftSemester === '' && s.drawerChipActive]}
+                    onPress={() => setDraftSemester('')}
+                  >
+                    <Text style={[s.drawerChipText, draftSemester === '' && s.drawerChipTextActive]}>All</Text>
+                  </TouchableOpacity>
+                  {semesters.map(sem => (
+                    <TouchableOpacity
+                      key={sem.id}
+                      style={[s.drawerChip, draftSemester === String(sem.id) && s.drawerChipActive]}
+                      onPress={() => setDraftSemester(String(sem.id))}
+                    >
+                      <Text style={[s.drawerChipText, draftSemester === String(sem.id) && s.drawerChipTextActive]}>
+                        {sem.semester_type_display}{'\n'}
+                        <Text style={{ fontSize: 10 }}>A.Y. {sem.academic_year}{sem.is_active ? ' ★' : ''}</Text>
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
+            </ScrollView>
+
+            {/* Apply button */}
+            <View style={s.drawerFooter}>
+              <TouchableOpacity style={s.applyBtn} onPress={applyFilters}>
+                <Text style={s.applyBtnText}>Apply Filters</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* ══════════════════════════════════════════════════
+          NEW / EDIT LOAN MODAL
+      ══════════════════════════════════════════════════ */}
       <BottomSheetModal
         visible={showForm}
         title={editing ? 'Edit Loan' : 'New Loan'}
@@ -452,7 +550,7 @@ const LoanTable = () => {
           </View>
         )}
 
-        {/* Member Picker ── */}
+        {/* Member */}
         <View style={s.fieldWrap}>
           <Text style={s.label}>Member *</Text>
           <View style={s.pickerWrap}>
@@ -463,7 +561,7 @@ const LoanTable = () => {
           </View>
         </View>
 
-        {/* Semester Picker ── */}
+        {/* Semester */}
         <View style={s.fieldWrap}>
           <Text style={s.label}>Semester</Text>
           <View style={s.pickerWrap}>
@@ -484,7 +582,7 @@ const LoanTable = () => {
           <Text style={s.hint}>★ = currently active semester</Text>
         </View>
 
-        {/* Book Picker ── */}
+        {/* Book */}
         <View style={s.fieldWrap}>
           <Text style={s.label}>Book *</Text>
           <View style={s.pickerWrap}>
@@ -521,7 +619,9 @@ const LoanTable = () => {
         )}
       </BottomSheetModal>
 
-      {/* ── Verify Return Modal ── */}
+      {/* ══════════════════════════════════════════════════
+          VERIFY RETURN MODAL
+      ══════════════════════════════════════════════════ */}
       <BottomSheetModal
         visible={!!verifyModal}
         title="Verify Return"
@@ -536,7 +636,7 @@ const LoanTable = () => {
             />
           </>
         }>
-        <Text style={[s.label, { marginBottom: 10 }]}>Confirm that the book has been physically received:</Text>
+        <Text style={[s.label, { marginBottom: 10 }]}>Confirm the book has been physically received:</Text>
         <View style={s.infoBox}>
           <Text style={s.infoBoxTitle}>{bookTitle(verifyModal?.book)}</Text>
           <Text style={s.infoBoxSub}>by {memberName(verifyModal?.member)}</Text>
@@ -547,7 +647,7 @@ const LoanTable = () => {
           )}
         </View>
         <TextInput
-          style={[s.input, s.textArea, { marginTop: 8 }]}
+          style={[s.input, s.textArea, { marginTop: 10 }]}
           value={verifyNotes} onChangeText={setVerifyNotes}
           placeholder="Optional notes (condition, remarks…)"
           placeholderTextColor={C.textMuted}
@@ -555,7 +655,9 @@ const LoanTable = () => {
         />
       </BottomSheetModal>
 
-      {/* ── Reject Return Modal ── */}
+      {/* ══════════════════════════════════════════════════
+          REJECT RETURN MODAL
+      ══════════════════════════════════════════════════ */}
       <BottomSheetModal
         visible={!!rejectModal}
         title="Reject Return"
@@ -571,7 +673,9 @@ const LoanTable = () => {
             />
           </>
         }>
-        <Text style={[s.label, { marginBottom: 10 }]}>The borrower will be notified and can re-submit their return request.</Text>
+        <Text style={[s.label, { marginBottom: 10 }]}>
+          The borrower will be notified and can re-submit their return request.
+        </Text>
         <View style={s.infoBox}>
           <Text style={s.infoBoxTitle}>{bookTitle(rejectModal?.book)}</Text>
           <Text style={s.infoBoxSub}>by {memberName(rejectModal?.member)}</Text>
@@ -589,7 +693,9 @@ const LoanTable = () => {
         )}
       </BottomSheetModal>
 
-      {/* ── Delete Confirm Modal ── */}
+      {/* ══════════════════════════════════════════════════
+          DELETE CONFIRM MODAL
+      ══════════════════════════════════════════════════ */}
       <BottomSheetModal
         visible={!!confirmDelete}
         title="Delete Loan Record"
@@ -614,73 +720,112 @@ const LoanTable = () => {
 
 export default LoanTable;
 
+// ── Styles ────────────────────────────────────────────────────────────────────
 const s = StyleSheet.create({
   container:    { flex: 1, backgroundColor: C.bg, padding: 16 },
 
-  header:       { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', marginBottom: 14, paddingBottom: 14, borderBottomWidth: 2, borderBottomColor: C.cream },
+  // Header
+  header:       { flexDirection: 'row', alignItems: 'center', marginBottom: 14, paddingBottom: 14, borderBottomWidth: 2, borderBottomColor: C.cream },
   headerAccent: { position: 'absolute', bottom: -2, left: 0, width: 48, height: 2, backgroundColor: C.red },
-  pageTitle:    { fontSize: 26, fontWeight: '800', color: C.textDark },
-  pageSubtitle: { fontSize: 12, color: C.textMuted, fontStyle: 'italic', marginTop: 2 },
-  headerBadges: { flexDirection: 'row', marginRight: 8 },
-  addBtn:       { backgroundColor: C.red, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 7 },
-  addBtnText:   { color: C.white, fontWeight: '700', fontSize: 13 },
+  pageTitle:    { fontSize: 24, fontWeight: '800', color: C.textDark },
+  pageSubtitle: { fontSize: 11, color: C.textMuted, fontStyle: 'italic', marginTop: 2 },
+  headerRight:  { flexDirection: 'row', alignItems: 'center', gap: 6, marginLeft: 8 },
+  headerBadge:  { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999, borderWidth: 1 },
+  headerBadgeText: { fontSize: 11, fontWeight: '700' },
+  addBtn:       { backgroundColor: C.red, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 7 },
+  addBtnText:   { color: C.white, fontWeight: '700', fontSize: 12 },
 
+  // Alert
   alertError:     { backgroundColor: C.red50, borderWidth: 1, borderColor: C.red300, borderRadius: 8, padding: 12, marginBottom: 12 },
   alertErrorText: { color: C.red700, fontSize: 13 },
 
-  searchInput:  { backgroundColor: C.white, borderWidth: 1, borderColor: C.border, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 9, fontSize: 13, color: C.textDark },
+  // Search row
+  searchRow:    { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
+  searchInput:  { flex: 1, backgroundColor: C.white, borderWidth: 1, borderColor: C.border, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 9, fontSize: 13, color: C.textDark },
+  filterBtn:    { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 12, paddingVertical: 9, borderRadius: 8, borderWidth: 1, borderColor: C.border, backgroundColor: C.white },
+  filterBtnActive: { backgroundColor: C.red, borderColor: C.red },
+  filterBtnIcon:{ fontSize: 13, color: C.textMuted },
+  filterBtnText:{ fontSize: 12, fontWeight: '600', color: C.textMid },
 
-  // ── Filter tabs fix ────────────────────────────────────────────────────────
-  filterWrap:   { flexDirection: 'row', alignItems: 'center', marginBottom: 14 },
-  filterScroll: { flexGrow: 0, flexShrink: 1 },          // ← KEY FIX: prevents vertical stretch
-  filterRow:    { flexDirection: 'row', alignItems: 'center', paddingVertical: 2, paddingRight: 8 },
-  filterBtn:    {
-    height: 30,                                           // ← fixed height
-    paddingHorizontal: 12,
-    borderRadius: 15,
+  // Active chips
+  activeChipsRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6, marginBottom: 8 },
+  chip:         { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: C.red, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999 },
+  chipText:     { fontSize: 11, color: C.white, fontWeight: '600' },
+  chipX:        { fontSize: 11, color: 'rgba(255,255,255,0.8)' },
+  clearAllText: { fontSize: 11, color: C.red700, fontStyle: 'italic' },
+
+  recordCount:  { fontSize: 11, color: C.textMuted, fontStyle: 'italic', marginBottom: 10 },
+  listContent:  { paddingBottom: 32, gap: 10 },
+
+  // Loan card
+  loanCard: {
+    backgroundColor: C.white,
+    borderRadius: 10,
     borderWidth: 1,
     borderColor: C.border,
-    backgroundColor: C.white,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 6,
+    borderLeftWidth: 4,
+    padding: 14,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 3,
+    elevation: 2,
+    gap: 8,
   },
-  filterBtnText:  { fontSize: 12, fontWeight: '600', color: C.textMid },
-  recordCount:    { fontSize: 11, color: C.textMuted, fontStyle: 'italic', marginLeft: 4, flexShrink: 0 },
+  loanCardTop:    { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 },
+  loanBookTitle:  { flex: 1, fontSize: 14, fontWeight: '700', color: C.textDark, lineHeight: 20 },
+  loanDetailRow:  { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  loanDetailIcon: { fontSize: 12 },
+  loanDetailLabel:{ fontSize: 11, color: C.textMuted, width: 60 },
+  loanDetailValue:{ fontSize: 12, fontWeight: '600', color: C.textMid, flex: 1 },
 
-  // Group
-  group:          { marginBottom: 8, borderRadius: 10, overflow: 'hidden', borderWidth: 1, borderColor: C.border },
-  groupHeader:    { flexDirection: 'row', alignItems: 'center', padding: 10 },
-  groupChevron:   { fontSize: 10, color: C.textMuted, width: 14, marginRight: 4 },
-  groupAvatar:    { width: 30, height: 30, borderRadius: 15, backgroundColor: C.red, alignItems: 'center', justifyContent: 'center', marginRight: 8 },
-  groupAvatarText:{ color: C.white, fontWeight: '800', fontSize: 13 },
-  groupName:      { fontSize: 14, fontWeight: '700', color: C.textDark, flex: 1 },
-  groupCount:     { fontSize: 11, color: C.textMuted, fontStyle: 'italic', marginRight: 4 },
+  loanDatesRow:   { flexDirection: 'row', backgroundColor: C.cream, borderRadius: 8, padding: 10 },
+  loanDateItem:   { flex: 1, alignItems: 'center' },
+  loanDateLabel:  { fontSize: 8, color: C.textMuted, letterSpacing: 1.2, marginBottom: 3 },
+  loanDateValue:  { fontSize: 11, fontWeight: '600', color: C.textDark },
+  loanDateDivider:{ width: 1, backgroundColor: C.border, marginHorizontal: 6 },
 
-  loanRow:        { paddingHorizontal: 12, paddingVertical: 10, borderTopWidth: 1, borderTopColor: C.cream },
-  loanRowLast:    { borderBottomWidth: 2, borderBottomColor: C.border },
-  loanRowTop:     { flexDirection: 'row', alignItems: 'center', marginBottom: 4 },
-  loanTreeChar:   { fontSize: 11, color: C.textMuted, width: 20 },
-  loanBookTitle:  { fontSize: 13, fontWeight: '600', color: C.textMid, flex: 1, marginRight: 6 },
-  loanMeta:       { flexDirection: 'row', flexWrap: 'wrap', paddingLeft: 20, marginBottom: 6 },
-  loanMetaText:   { fontSize: 11, color: C.textMuted, marginRight: 12 },
-  loanActions:    { flexDirection: 'row', flexWrap: 'wrap', paddingLeft: 20 },
-  actionBtn:      { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 5, borderWidth: 1, marginRight: 6, marginBottom: 4 },
+  loanExtraRow:   { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  semesterTag:    { backgroundColor: C.purple50, borderWidth: 1, borderColor: C.purple300, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 3 },
+  semesterTagText:{ fontSize: 10, color: C.purple700, fontWeight: '600' },
+  feeTag:         { backgroundColor: C.red50, borderWidth: 1, borderColor: C.red300, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 3 },
+  feeTagText:     { fontSize: 10, color: C.red700, fontWeight: '700' },
+
+  loanActions:    { flexDirection: 'row', flexWrap: 'wrap', gap: 6, paddingTop: 4, borderTopWidth: 1, borderTopColor: C.cream },
+  actionBtn:      { paddingHorizontal: 12, paddingVertical: 5, borderRadius: 6, borderWidth: 1 },
   actionBtnText:  { fontSize: 11, fontWeight: '600' },
 
-  semesterRow:   { flexDirection: 'row', alignItems: 'center', marginBottom: 10, gap: 8 },
-  semesterLabel: { fontSize: 12, color: C.textMuted, fontStyle: 'italic', flexShrink: 0 },
+  // States
+  emptyState:     { alignItems: 'center', paddingVertical: 48, gap: 6 },
+  emptyEmoji:     { fontSize: 38 },
+  emptyTitle:     { fontSize: 16, fontWeight: '700', color: C.textMid },
+  emptyBody:      { fontSize: 13, color: C.textMuted, fontStyle: 'italic', textAlign: 'center' },
+  centerState:    { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 10, padding: 40 },
+  centerStateText:{ color: C.textMuted, fontStyle: 'italic' },
 
   badge:          { paddingHorizontal: 7, paddingVertical: 2, borderRadius: 999, borderWidth: 1 },
   badgeText:      { fontSize: 10, fontWeight: '600' },
 
-  emptyState:     { alignItems: 'center', padding: 40 },
-  emptyEmoji:     { fontSize: 40, marginBottom: 8 },
-  emptyTitle:     { fontSize: 17, fontWeight: '700', color: C.textMid, marginBottom: 4 },
-  emptyBody:      { fontSize: 13, color: C.textMuted, fontStyle: 'italic' },
-  centerState:    { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 40 },
-  centerStateText:{ color: C.textMuted, fontStyle: 'italic', marginTop: 10 },
+  // Filter drawer
+  drawerOverlay:  { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
+  drawerSheet:    { backgroundColor: C.white, borderTopLeftRadius: 20, borderTopRightRadius: 20, maxHeight: '75%', paddingBottom: 32 },
+  drawerHandle:   { width: 40, height: 4, backgroundColor: C.border, borderRadius: 2, alignSelf: 'center', marginTop: 10, marginBottom: 4 },
+  drawerHeader:   { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: C.cream },
+  drawerTitle:    { fontSize: 16, fontWeight: '700', color: C.textDark },
+  drawerClearText:{ fontSize: 13, color: C.red700 },
+  drawerBody:     { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 8 },
+  drawerSectionLabel: { fontSize: 11, fontWeight: '700', color: C.textMuted, letterSpacing: 1.2, marginBottom: 10, textTransform: 'uppercase' },
+  drawerChipRow:  { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  drawerChip:     { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20, borderWidth: 1, borderColor: C.border, backgroundColor: C.white },
+  drawerChipActive:   { backgroundColor: C.red, borderColor: C.red },
+  drawerChipText:     { fontSize: 12, fontWeight: '600', color: C.textMid },
+  drawerChipTextActive: { color: C.white },
+  drawerNoData:   { fontSize: 12, color: C.textMuted, fontStyle: 'italic' },
+  drawerFooter:   { paddingHorizontal: 20, paddingTop: 12, borderTopWidth: 1, borderTopColor: C.cream },
+  applyBtn:       { backgroundColor: C.red, borderRadius: 8, paddingVertical: 13, alignItems: 'center' },
+  applyBtnText:   { color: C.white, fontWeight: '700', fontSize: 14, letterSpacing: 0.5 },
 
+  // Form
   fieldWrap:      { marginBottom: 14 },
   label:          { fontSize: 13, fontWeight: '600', color: C.textMid, marginBottom: 5 },
   input:          { backgroundColor: C.white, borderWidth: 1, borderColor: C.border, borderRadius: 7, paddingHorizontal: 12, paddingVertical: 10, fontSize: 13, color: C.textDark },
@@ -694,8 +839,8 @@ const s = StyleSheet.create({
   infoBoxSub:     { fontSize: 12, color: C.textMuted, marginTop: 2 },
   infoBoxFee:     { fontSize: 12, color: C.red600, fontWeight: '700', marginTop: 8 },
 
-  confirmBody:    { alignItems: 'center', paddingVertical: 16 },
-  confirmEmoji:   { fontSize: 38, marginBottom: 10 },
-  confirmTitle:   { fontSize: 15, color: C.textMid, textAlign: 'center', marginBottom: 6 },
+  confirmBody:    { alignItems: 'center', paddingVertical: 16, gap: 8 },
+  confirmEmoji:   { fontSize: 38 },
+  confirmTitle:   { fontSize: 15, color: C.textMid, textAlign: 'center' },
   confirmNote:    { fontSize: 13, color: C.textMuted, fontStyle: 'italic', textAlign: 'center' },
 });

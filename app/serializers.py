@@ -119,6 +119,19 @@ class LoanSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("This book is currently on loan and cannot be borrowed.")
         return value
 
+    def create(self, validated_data):
+        # Auto-assign semester if not provided
+        if not validated_data.get('semester'):
+            loan_date = validated_data.get('loan_date')
+            if loan_date:
+                matched = Semester.objects.filter(
+                    start_date__lte=loan_date,
+                    end_date__gte=loan_date
+                ).first()
+                if matched:
+                    validated_data['semester'] = matched
+        return super().create(validated_data)
+
 
 class ReservationSerializer(serializers.ModelSerializer):
     book_title  = serializers.SerializerMethodField()

@@ -101,6 +101,15 @@ class Loan(models.Model):
                 self.loan_date = datetime.strptime(self.loan_date, '%Y-%m-%d').date()
             self.due_date = self.loan_date + timedelta(days=14)
 
+            # ── Auto-assign semester if not manually set ──
+            if not self.semester_id:
+                matched = Semester.objects.filter(
+                    start_date__lte=self.loan_date,
+                    end_date__gte=self.loan_date
+                ).first()
+                if matched:
+                    self.semester = matched
+
         if self.book_id:
             book = Book.objects.get(pk=self.book_id)
             book.available = bool(self.return_verified_date)

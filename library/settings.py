@@ -144,7 +144,7 @@ SERVER_EMAIL = os.environ.get('EMAIL_HOST_USER')
 DJOSER = {
     'LOGIN_FIELD': 'email',
     'USER_CREATE_PASSWORD_RETYPE': True,
-    'SEND_ACTIVATION_EMAIL': True,
+    'SEND_ACTIVATION_EMAIL': False,
     'ACTIVATION_URL': 'activate/{uid}/{token}',
     'DOMAIN': 'pit-2-ip.onrender.com',      
     'SITE_NAME': 'Librium Portal',     

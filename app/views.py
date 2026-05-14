@@ -582,9 +582,23 @@ class BookRetrieveUpdateDestroyView(RetrieveUpdateDestroyAPIView):
     def get_serializer_context(self):
         return {'request': self.request}
 
-    def partial_update(self, request, *args, **kwargs):  
+    def partial_update(self, request, *args, **kwargs):
         kwargs['partial'] = True
         return self.update(request, *args, **kwargs)
+
+    def update(self, request, *args, **kwargs):
+        partial  = kwargs.pop('partial', False)
+        instance = self.get_object()
+
+        # Strip cover_image if it's not a real uploaded file
+        data = request.data.copy()
+        if 'cover_image' in data and not hasattr(data['cover_image'], 'read'):
+            del data['cover_image']
+
+        serializer = self.get_serializer(instance, data=data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data)
 
 
 class LoanListCreateView(ListCreateAPIView):

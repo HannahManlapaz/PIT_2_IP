@@ -204,15 +204,52 @@ const BookTable = () => {
     }
     try {
       setSaving(true); setError('');
-      const payload = { ...form, cover_image: imageFile ?? form.cover_image };
-      if (editing) await updateBook(editing.id, payload);
-      else         await createBook(payload);
+
+      let payload, config;
+
+      if (imageFile) {
+        // New image selected → FormData required
+        const fd = new FormData();
+        fd.append('title',            form.title);
+        fd.append('isbn',             form.isbn);
+        fd.append('publication_year', String(form.publication_year));
+        fd.append('author',           String(form.author));
+        fd.append('available',        form.available ? '1' : '0');
+        fd.append('description',      form.description ?? '');
+        if (form.category   != null) fd.append('category',   String(form.category));
+        if (form.department != null) fd.append('department', String(form.department));
+        fd.append('cover_image', {
+          uri:  imageFile.uri,
+          name: imageFile.name ?? 'cover.jpg',
+          type: imageFile.type ?? 'image/jpeg',
+        });
+        payload = fd;
+        config  = { headers: { 'Content-Type': 'multipart/form-data' } };
+      } else {
+        // No new image → plain JSON, types stay correct
+        payload = {
+          title:            form.title,
+          isbn:             form.isbn,
+          publication_year: form.publication_year,
+          author:           form.author,
+          available:        form.available,
+          description:      form.description ?? '',
+          category:         form.category   ?? null,
+          department:       form.department ?? null,
+        };
+        config = { headers: { 'Content-Type': 'application/json' } };
+      }
+
+      if (editing) await updateBook(editing.id, payload, config);
+      else         await createBook(payload, config);
+
       setShowForm(false); await load();
     } catch (e) {
       console.log('Save error:', JSON.stringify(e?.response?.data));
       setError('Failed to save book.');
+    } finally {
+      setSaving(false);
     }
-    finally { setSaving(false); }
   };
 
   const handleDelete = async () => {

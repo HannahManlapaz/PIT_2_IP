@@ -582,6 +582,9 @@ class BookRetrieveUpdateDestroyView(RetrieveUpdateDestroyAPIView):
     def get_serializer_context(self):
         return {'request': self.request}
 
+    def partial_update(self, request, *args, **kwargs):  
+        kwargs['partial'] = True
+        return self.update(request, *args, **kwargs)
 
 
 class LoanListCreateView(ListCreateAPIView):

@@ -40,17 +40,18 @@ class SemesterSerializer(serializers.ModelSerializer):
 
 
 class BookSerializer(serializers.ModelSerializer):
-    author_name      = serializers.SerializerMethodField()
-    cover_image_url  = serializers.SerializerMethodField()
-    category_name    = serializers.SerializerMethodField()    
-    department_name  = serializers.SerializerMethodField()    
+    author_name     = serializers.SerializerMethodField()
+    cover_image_url = serializers.SerializerMethodField()
+    category_name   = serializers.SerializerMethodField()
+    department_name = serializers.SerializerMethodField()
+    cover_image     = serializers.ImageField(required=False, allow_null=True)  
 
     class Meta:
         model  = Book
         fields = ['id', 'title', 'isbn', 'publication_year', 'author',
                   'author_name', 'available', 'cover_image', 'cover_image_url',
                   'description', 'category', 'category_name',
-                  'department', 'department_name']             
+                  'department', 'department_name']    
 
     def get_author_name(self, obj):
         return obj.author.name if obj.author else None

@@ -590,9 +590,16 @@ class BookRetrieveUpdateDestroyView(RetrieveUpdateDestroyAPIView):
         partial  = kwargs.pop('partial', False)
         instance = self.get_object()
 
-        # Strip cover_image if it's not a real uploaded file
+        # Check original request.data for a real file BEFORE copying
+        has_real_image = (
+            'cover_image' in request.data and
+            hasattr(request.data['cover_image'], 'read')
+        )
+
         data = request.data.copy()
-        if 'cover_image' in data and not hasattr(data['cover_image'], 'read'):
+
+        # Only strip cover_image if it's NOT a real uploaded file
+        if 'cover_image' in data and not has_real_image:
             del data['cover_image']
 
         serializer = self.get_serializer(instance, data=data, partial=partial)

@@ -16,9 +16,12 @@ ALLOWED_HOSTS = ['localhost', '127.0.0.1', 'pit-2-ip-34al.onrender.com']
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
-    "http://localhost:8081", 
-    "http://127.0.0.1:8081", 
+    "http://localhost:8081",
+    "http://127.0.0.1:8081",
     "https://pit-2-ip-34al.onrender.com",
+
+    "http://localhost:19006",   # Expo web alternate port
+    "http://localhost:19000",   # Expo Go
 ]
 
 CORS_ALLOW_CREDENTIALS = True

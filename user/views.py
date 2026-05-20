@@ -38,8 +38,7 @@ class RegisterView(APIView):
                     context={'user': user, 'uid': uid, 'token': token}
                 ).send(to=[user.email])
             except Exception as e:
-                print(f"Email failed: {e}")
-                # Don't crash — registration still succeeds
+                print(f"Email failed: {e}")  # ← logs but doesn't crash
 
             return Response(
                 {'message': 'Account created! Please check your email to activate your account.'},

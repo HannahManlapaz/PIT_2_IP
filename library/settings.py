@@ -9,7 +9,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 SECRET_KEY = 'django-insecure-0l+_k%f4!&zo%mfz!7v4$w-#uu4oxwuhb$zhf-1=xuub5+#c5v'
 DEBUG = True
-ALLOWED_HOSTS = ['localhost', '127.0.0.1', 'pit-2-ip.onrender.com']
+ALLOWED_HOSTS = ['localhost', '127.0.0.1', 'pit-2-ip-34al.onrender.com']
 
 
 # CORS Settings
@@ -18,7 +18,7 @@ CORS_ALLOWED_ORIGINS = [
     "http://127.0.0.1:3000",
     "http://localhost:8081", 
     "http://127.0.0.1:8081", 
-    "https://pit-2-ip.onrender.com",
+    "https://pit-2-ip-34al.onrender.com",
 ]
 
 CORS_ALLOW_CREDENTIALS = True
@@ -41,7 +41,7 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
-    'corsheaders.middleware.CorsMiddleware',  # Should be at the top
+    'corsheaders.middleware.CorsMiddleware',  
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -146,7 +146,7 @@ DJOSER = {
     'USER_CREATE_PASSWORD_RETYPE': True,
     'SEND_ACTIVATION_EMAIL': False,
     'ACTIVATION_URL': 'activate/{uid}/{token}',
-    'DOMAIN': 'pit-2-ip.onrender.com',      
+    'DOMAIN': 'pit-2-ip-34al.onrender.com',      
     'SITE_NAME': 'Librium Portal',     
     'SERIALIZERS': {
         'user_create': 'user.serializers.UserCreateSerializer',

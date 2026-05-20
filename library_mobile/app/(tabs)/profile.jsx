@@ -1,5 +1,6 @@
 // app/(tabs)/profile.jsx
 import React, { useEffect, useState } from "react";
+import { Platform } from "react-native";
 import {
   View, Text, TextInput, TouchableOpacity,
   ScrollView, Image, ActivityIndicator,
@@ -154,14 +155,29 @@ export default function ProfileScreen() {
       const BASE_URL = process.env.EXPO_PUBLIC_API_URL;
 
       const formData = new FormData();
-      formData.append("name",           editForm.name);
-      formData.append("contact_number", editForm.contact_number);
-      formData.append("address",        editForm.address);
-      formData.append("birthday",       editForm.birthday);
+      if (editForm.name)           formData.append("name",           editForm.name);
+      if (editForm.contact_number) formData.append("contact_number", editForm.contact_number);
+      if (editForm.address)        formData.append("address",        editForm.address);
+      if (editForm.birthday)       formData.append("birthday",       editForm.birthday);
+
       if (picUri) {
-        const filename = picUri.split("/").pop() ?? "photo.jpg";
-        const ext      = filename.split(".").pop() ?? "jpg";
-        formData.append("profile_picture", { uri: picUri, name: filename, type: `image/${ext}` });
+        if (Platform.OS === "web") {
+          // ← Replace everything inside this block with:
+          const response  = await fetch(picUri);
+          const blob      = await response.blob();
+          const filename  = picUri.split("/").pop() ?? "photo.jpg";
+          const ext       = filename.includes(".")
+            ? filename.split(".").pop()
+            : blob.type.split("/")[1] ?? "jpg";
+          const finalName = filename.includes(".") ? filename : `photo.${ext}`;
+          const typedBlob = new Blob([blob], { type: `image/${ext}` });
+          formData.append("profile_picture", typedBlob, finalName);
+        } else {
+          // Mobile stays the same — don't touch this
+          const filename = picUri.split("/").pop() ?? "photo.jpg";
+          const ext      = filename.split(".").pop() ?? "jpg";
+          formData.append("profile_picture", { uri: picUri, name: filename, type: `image/${ext}` });
+        }
       }
 
       const res = await fetch(`${BASE_URL}/borrower/profile/`, {
@@ -169,7 +185,13 @@ export default function ProfileScreen() {
         headers: { Authorization: `Bearer ${token}` },
         body: formData,
       });
-      if (!res.ok) throw new Error("Update failed");
+
+      if (!res.ok) {
+        const errData = await res.json();
+        console.log("Profile update error:", JSON.stringify(errData));
+        throw new Error("Update failed");
+      }
+
       const updated = await res.json();
       setProfile(prev => ({ ...prev, ...updated }));
       setSuccess("Profile updated successfully!");

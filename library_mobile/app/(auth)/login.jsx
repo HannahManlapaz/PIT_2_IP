@@ -82,7 +82,7 @@ export default function Login() {
     try {
       setLoading(true);
       const data = await loginApi(email, password);
-      console.log("Login response:", JSON.stringify(data));
+      //console.log("Login response:", JSON.stringify(data));
       if (data.token || data.access) {
         await AsyncStorage.setItem('token', data.token || data.access);
         if (data.username)  await AsyncStorage.setItem('username',  data.username);

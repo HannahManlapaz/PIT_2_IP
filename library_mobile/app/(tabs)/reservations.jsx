@@ -164,7 +164,7 @@ export default function ReservationsScreen() {
             <Text style={s.readyBannerTitle}>
               {readyCount} reserved book{readyCount > 1 ? "s are" : " is"} ready for you!
             </Text>
-            <Text style={s.readyBannerSub}>Tap "Borrow Now" below to claim it.</Text>
+            <Text style={s.readyBannerSub}>Tap "Reserve" below to claim it.</Text>
           </View>
         </View>
       )}
@@ -242,7 +242,7 @@ export default function ReservationsScreen() {
                       ? <ActivityIndicator size="small" color="#fff" />
                       : <>
                           <Feather name="star" size={13} color="#fff" />
-                          <Text style={s.borrowNowText}>Borrow Now</Text>
+                          <Text style={s.borrowNowText}>Reserve</Text>
                         </>
                     }
                   </Pressable>

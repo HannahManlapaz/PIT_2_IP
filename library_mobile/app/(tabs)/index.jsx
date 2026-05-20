@@ -251,7 +251,7 @@ export default function BrowseScreen() {
     const isBusy = borrowing === book.id || reserving === book.id;
 
     const actionLabel = book.available          ? "Borrow"
-      : res?.status === "ready"                 ? "⭐ Borrow Now"
+      : res?.status === "ready"                 ? "Reserve"
       : res?.status === "waiting"               ? "✕ Cancel"
       : "Reserve";
 

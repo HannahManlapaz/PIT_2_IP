@@ -180,7 +180,7 @@ export default function SemestersScreen() {
         {/* Active ribbon */}
         {isActive && (
           <View style={s.activeRibbon}>
-            <Text style={s.activeRibbonText}>✦ CURRENT SEMESTER</Text>
+            <Text style={s.activeRibbonText}>CURRENT SEMESTER</Text>
           </View>
         )}
 
@@ -221,7 +221,7 @@ export default function SemestersScreen() {
             >
               {activating === sem.id
                 ? <ActivityIndicator size="small" color={C.green700} />
-                : <Text style={[s.actionBtnText, { color: C.green700 }]}>✓ Set Active</Text>
+                : <Text style={[s.actionBtnText, { color: C.green700 }]}>Set Active</Text>
               }
             </TouchableOpacity>
           )}
@@ -291,7 +291,7 @@ export default function SemestersScreen() {
           );
         })}
         <View style={[s.legendItem, { backgroundColor: '#fdf4ff', borderColor: '#e9d5ff' }]}>
-          <Text style={[s.legendText, { color: '#7e22ce' }]}>✦ Active</Text>
+          <Text style={[s.legendText, { color: '#7e22ce' }]}>Active</Text>
         </View>
       </View>
 

@@ -144,9 +144,9 @@ SERVER_EMAIL = os.environ.get('EMAIL_HOST_USER')
 DJOSER = {
     'LOGIN_FIELD': 'email',
     'USER_CREATE_PASSWORD_RETYPE': True,
-    'SEND_ACTIVATION_EMAIL': True,  # ← change False to True
-    'ACTIVATION_URL': 'activate/{uid}/{token}',  
-    'DOMAIN': os.environ.get('FRONTEND_URL', 'localhost:8081'),  
+    'SEND_ACTIVATION_EMAIL': True,
+    'ACTIVATION_URL': 'activate/{uid}/{token}',
+    'DOMAIN': os.environ.get('FRONTEND_URL', 'http://localhost:8081').replace('http://', '').replace('https://', ''),
     'SITE_NAME': 'Librium Portal',
     'SERIALIZERS': {
         'user_create': 'user.serializers.UserCreateSerializer',
@@ -157,3 +157,5 @@ DJOSER = {
         'activation': 'user.email.CustomActivationEmail',
     },
 }
+
+FRONTEND_URL = os.environ.get('FRONTEND_URL', 'http://localhost:8081')

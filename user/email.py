@@ -11,11 +11,8 @@ class CustomActivationEmail(email.ActivationEmail):
         uid     = context['uid']
         token   = context['token']
 
-        frontend = os.environ.get('FRONTEND_URL', 'http://localhost:8081')
-
-        # Web link (Vercel or localhost)
+        frontend   = os.environ.get('FRONTEND_URL', 'http://localhost:8081')
         web_url    = f"{frontend}/activate/{uid}/{token}"
-        # Mobile deep link
         mobile_url = f"librium://activate/{uid}/{token}"
 
         context['web_url']    = web_url
@@ -23,6 +20,7 @@ class CustomActivationEmail(email.ActivationEmail):
         context['url']        = web_url
 
         html_content = render_to_string(self.template_name, context)
+
         msg = EmailMultiAlternatives(
             subject="Activate your Librium Portal account",
             body=f"Activate your account here: {web_url}",

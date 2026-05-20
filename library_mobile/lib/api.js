@@ -49,11 +49,10 @@ export const createAuthor = (data) =>
 
 export const updateAuthor = (id, data) =>
   api.put(`/authors/${id}/`, data).then((r) => r.data);
-
+  
 export const deleteAuthor = (id) =>
   api.delete(`/authors/${id}/`);
 
-// ── Books ─────────────────────────────────────────
 // ── Books ─────────────────────────────────────────
 export const getBooks = () =>
   api.get("/books/").then((r) => r.data);

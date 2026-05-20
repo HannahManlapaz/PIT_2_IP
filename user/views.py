@@ -23,27 +23,29 @@ class RegisterView(APIView):
         serializer = UserCreateSerializer(data=request.data, context={'request': request})
         if serializer.is_valid():
             user = serializer.save()
-            user.is_active = False  
+            user.is_active = False  # inactive until email confirmed
             user.save()
 
-            # Trigger activation email via Djoser
-            from djoser.utils import encode_uid
-            from django.contrib.auth.tokens import default_token_generator
-            from user.email import CustomActivationEmail
+            try:
+                from djoser.utils import encode_uid
+                from django.contrib.auth.tokens import default_token_generator
+                from user.email import CustomActivationEmail
 
-            uid   = encode_uid(user.pk)
-            token = default_token_generator.make_token(user)
-            CustomActivationEmail(
-                request=request,
-                context={'user': user, 'uid': uid, 'token': token}
-            ).send(to=[user.email])
+                uid   = encode_uid(user.pk)
+                token = default_token_generator.make_token(user)
+                CustomActivationEmail(
+                    request=request,
+                    context={'user': user, 'uid': uid, 'token': token}
+                ).send(to=[user.email])
+            except Exception as e:
+                print(f"Email failed: {e}")
+                # Don't crash — registration still succeeds
 
             return Response(
                 {'message': 'Account created! Please check your email to activate your account.'},
                 status=status.HTTP_201_CREATED
             )
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
 
 class LoginView(APIView):
     permission_classes = [AllowAny]

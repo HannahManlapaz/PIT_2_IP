@@ -3,11 +3,12 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated, IsAdminUser, AllowAny
 from django.contrib.auth import get_user_model, authenticate
+from django.utils.encoding import force_bytes
+from django.utils.http import urlsafe_base64_encode
 from .serializers import UserCreateSerializer, UserSerializer
 from datetime import date
-from djoser.utils import encode_uid
 from django.contrib.auth.tokens import default_token_generator
-from user.email import CustomActivationEmail
+from user.email import send_activation_email
 from djoser.utils import decode_uid
 
 User = get_user_model()
@@ -27,16 +28,9 @@ class RegisterView(APIView):
             user.save()
 
             try:
-                from djoser.utils import encode_uid
-                from django.contrib.auth.tokens import default_token_generator
-                from user.email import CustomActivationEmail
-
-                uid   = encode_uid(user.pk)
+                uid = urlsafe_base64_encode(force_bytes(user.pk))
                 token = default_token_generator.make_token(user)
-                CustomActivationEmail(
-                    request=request,
-                    context={'user': user, 'uid': uid, 'token': token}
-                ).send(to=[user.email])
+                send_activation_email(user, to_email=[user.email], uid=uid, token=token, request=request)
             except Exception as e:
                 print(f"Email failed: {e}")  # ← logs but doesn't crash
 

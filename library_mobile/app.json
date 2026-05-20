@@ -2,7 +2,7 @@
   "expo": {
     "name": "library_mobile",
     "slug": "library_mobile",
-    "scheme": "library_mobile",
+    "scheme": "librium",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",

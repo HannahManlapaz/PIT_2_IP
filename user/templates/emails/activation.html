@@ -1,3 +1,6 @@
+<!-- user/templates/emails/activation.html This is the HTML template for the account activation email sent to users after registration. 
+  It includes a styled layout with a header, body content, and footer, along with an activation button. -->
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -132,8 +135,11 @@
       <hr class="divider">
 
       <div class="btn-wrapper">
-        <a href="{{ url }}" class="btn">
-          Activate My Account
+        <a href="{{ web_url }}" class="btn">Activate via Web</a>
+        <br><br>
+        <a href="{{ mobile_url }}" class="btn" 
+          style="background: linear-gradient(135deg, #2d1f05, #4a3210); color: #c9a84c !important;">
+          Open in Mobile App
         </a>
       </div>
 

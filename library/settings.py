@@ -144,14 +144,14 @@ SERVER_EMAIL = os.environ.get('EMAIL_HOST_USER')
 DJOSER = {
     'LOGIN_FIELD': 'email',
     'USER_CREATE_PASSWORD_RETYPE': True,
-    'SEND_ACTIVATION_EMAIL': False,
-    'ACTIVATION_URL': 'activate/{uid}/{token}',
-    'DOMAIN': 'pit-2-ip-34al.onrender.com',      
-    'SITE_NAME': 'Librium Portal',     
+    'SEND_ACTIVATION_EMAIL': True,  # ← change False to True
+    'ACTIVATION_URL': 'activate/{uid}/{token}',  
+    'DOMAIN': os.environ.get('FRONTEND_URL', 'localhost:8081'),  
+    'SITE_NAME': 'Librium Portal',
     'SERIALIZERS': {
         'user_create': 'user.serializers.UserCreateSerializer',
         'user_create_password_retype': 'user.serializers.UserCreateSerializer',
-        'user':        'user.serializers.UserSerializer',
+        'user': 'user.serializers.UserSerializer',
     },
     'EMAIL': {
         'activation': 'user.email.CustomActivationEmail',

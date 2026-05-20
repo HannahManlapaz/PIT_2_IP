@@ -2,6 +2,12 @@ from djoser import email
 from django.core.mail import EmailMultiAlternatives
 from django.template.loader import render_to_string
 import os
+from djoser import email
+from django.core.mail import EmailMultiAlternatives
+from django.template.loader import render_to_string
+from django.core.mail import get_connection
+import os
+
 
 class CustomActivationEmail(email.ActivationEmail):
     template_name = "emails/activation.html"
